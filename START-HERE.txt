@@ -1,0 +1,36 @@
+TriWeb Solutions website: NEWEST version (build 2026-11-16h, Sheet connected)
+=================================================================================
+
+BEFORE YOU START: stop any older copy that is still running.
+In every VS Code / terminal window that shows "VITE ... ready", press Ctrl + C.
+
+RUN IT ON YOUR COMPUTER
+1. Open THIS folder (the one containing package.json) in VS Code.
+2. In a terminal here run:
+       npm install
+       npm run dev
+3. The browser opens by itself at http://localhost:5190
+   For the smoothest result, test the optimised build instead of dev mode:
+       npm run build
+       npm run preview          (opens http://localhost:5191)
+
+CHECK YOU HAVE THE NEWEST VERSION
+- Press F12 > Console. You should see:
+  "TriWeb Solutions: build 2026-11-16h (Sheet connected)"
+- Move the mouse: a small glass lens follows the pointer.
+
+BEST VIEWING
+Use Chrome or Edge with hardware acceleration on (Settings > System >
+"Use graphics acceleration when available"), plugged in, Energy Saver off.
+The glass refraction effect is a Chromium feature; other browsers show a
+lighter glass lens.
+
+PUBLISH IT
+Upload everything inside "website-ready-to-upload" to your web host.
+(Double-clicking its index.html will not work; browsers block sites opened
+straight from the disk.)
+
+
+CONTACT FORM → GOOGLE SHEET
+  Connected. Every "Send message" adds a row to your "Tri Web Enquiries" sheet (Enquiries tab)
+  and emails you an alert. Setup notes and the script are in google-sheet-setup.

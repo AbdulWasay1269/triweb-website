@@ -1,0 +1,81 @@
+TriWeb website → Google Sheet: one-time setup (about 5 minutes)
+==================================================================
+
+After this, every time a visitor presses "Send message" on the website:
+  • a new row appears in your Google Sheet, with every detail they typed
+  • you get an email alert with the enquiry (press Reply to answer them)
+  • the visitor sees "Your message has been sent" and a reference number
+
+It's free and runs on your own Google account. Use the Google account you
+want the enquiries in (for example triwebinnovations@gmail.com).
+
+
+STEP 1  Create the spreadsheet
+  1. Go to https://sheets.google.com and create a Blank spreadsheet.
+  2. Name it, for example: TriWeb Website Enquiries
+
+STEP 2  Add the script
+  1. In the spreadsheet menu choose  Extensions → Apps Script.
+  2. Delete everything in the code box.
+  3. Open the file Code.gs (next to this file), copy ALL of it, paste it in.
+  4. Click the Save icon (💾).
+
+STEP 3  Format the sheet (run once)
+  1. In the toolbar, make sure the function dropdown shows  setup , then press  Run ▶.
+  2. Google asks for permission. Click  Review permissions → choose your account.
+     If you see "Google hasn't verified this app", click  Advanced →
+     Go to (project name) (unsafe).  This is normal: it's your own script.
+     Click  Allow.
+  3. Go back to the spreadsheet. A tab called  Enquiries  now has the
+     formatted header row.
+
+STEP 4  Publish it as a web app
+  1. In Apps Script, click  Deploy → New deployment.
+  2. Click the gear ⚙ next to "Select type" and choose  Web app.
+  3. Set:
+       Description:      TriWeb contact form
+       Execute as:       Me
+       Who has access:   Anyone          ← must be "Anyone", not "Anyone with Google account"
+  4. Click  Deploy  (allow access again if asked).
+  5. Copy the  Web app URL . It looks like:
+       https://script.google.com/macros/s/AKfy....../exec
+
+STEP 5  Connect the website
+  Send me that URL and I'll plug it in and send you the updated website.
+
+  Or do it yourself: open  src/data/site.js , find
+
+      sheetEndpoint: '',
+
+  and paste the URL between the quotes:
+
+      sheetEndpoint: 'https://script.google.com/macros/s/AKfy....../exec',
+
+  Then rebuild (npm run build) and upload the new  website-ready-to-upload  folder.
+
+STEP 6  Test
+  Open your website, fill in the contact form, press Send message.
+  A new row should appear in the Enquiries tab within a few seconds.
+
+
+WHAT EACH COLUMN MEANS
+  Reference                 Unique number, e.g. TW-261116-004 (also shown to the visitor)
+  Received (Pakistan time)  Date and time it arrived
+  Name, Email, Business name, Interested in, Project details
+                            Exactly what the visitor entered (email is clickable)
+  Status                    Dropdown for you: New / Contacted / In progress / Won / Closed
+                            ("New" rows are highlighted)
+  Notes                     Free space for your own notes
+  Sent from page            The web page the form was sent from
+  Device / browser          The visitor's browser, useful if something looks odd
+
+
+GOOD TO KNOW
+  • Turn email alerts off: in the script set  SEND_EMAIL_ALERT = false, save,
+    then Deploy → Manage deployments → ✏ Edit → Version: New version → Deploy.
+  • Any time you change the script, publish a new version as above. The URL stays the same.
+  • Don't rename the "Enquiries" tab. You can add other tabs freely.
+  • Spam protection is built in (a hidden trap field), and if a visitor's
+    message is sent twice by accident it's only saved once.
+  • Keep the spreadsheet private; the web app only lets the form add rows,
+    nobody can read your sheet through it.
