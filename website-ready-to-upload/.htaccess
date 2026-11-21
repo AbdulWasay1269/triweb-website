@@ -1,0 +1,11 @@
+# For Apache / cPanel hosting only (Vercel uses vercel.json instead).
+# Serves the clean page addresses (/about → about.html) and the 404 page.
+Options -MultiViews
+DirectorySlash Off
+RewriteEngine On
+
+RewriteRule ^work/?$ /portfolio [R=301,L]
+RewriteRule ^(about|media|software|portfolio|contact)/$ /$1 [R=301,L]
+RewriteRule ^(about|media|software|portfolio|contact)$ $1.html [L]
+
+ErrorDocument 404 /404.html

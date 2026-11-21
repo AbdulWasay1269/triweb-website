@@ -7,6 +7,9 @@
  */
 export const site = {
   name: 'TriWeb Solutions',
+  // Your live web address, e.g. 'https://triwebsolutions.com'. Optional: when the site
+  // is built on Vercel it uses the project's main domain automatically.
+  url: '',
   instagramHandle: '@triwebsolutions',
   tagline: 'Creative Excellence. Intelligent Technology. Limitless Growth.',
   description:

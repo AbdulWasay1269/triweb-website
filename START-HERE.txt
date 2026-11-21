@@ -1,5 +1,5 @@
-TriWeb Solutions website: NEWEST version (build 2026-11-16h, Sheet connected)
-=================================================================================
+TriWeb Solutions website: NEWEST version (build 2026-11-21a, Clean URLs)
+=========================================================================
 
 BEFORE YOU START: stop any older copy that is still running.
 In every VS Code / terminal window that shows "VITE ... ready", press Ctrl + C.
@@ -16,7 +16,7 @@ RUN IT ON YOUR COMPUTER
 
 CHECK YOU HAVE THE NEWEST VERSION
 - Press F12 > Console. You should see:
-  "TriWeb Solutions: build 2026-11-16h (Sheet connected)"
+  "TriWeb Solutions: build 2026-11-21a (Clean URLs)"
 - Move the mouse: a small glass lens follows the pointer.
 
 BEST VIEWING
@@ -25,8 +25,14 @@ Use Chrome or Edge with hardware acceleration on (Settings > System >
 The glass refraction effect is a Chromium feature; other browsers show a
 lighter glass lens.
 
+PAGE ADDRESSES
+  /  /about  /media  /software  /portfolio  /contact
+  Old links such as yoursite.com/#media still work and move to /media.
+
 PUBLISH IT
-Upload everything inside "website-ready-to-upload" to your web host.
+Recommended: Vercel, linked to the GitHub repository. Every change pushed
+to GitHub goes live automatically (see README.md, "Publish it").
+Other hosting: upload everything inside "website-ready-to-upload".
 (Double-clicking its index.html will not work; browsers block sites opened
 straight from the disk.)
 

@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { currentRoute } from '../lib/routes.js'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
@@ -51,7 +52,7 @@ const JOURNEYS = {
   contact: [['finale', FIRST], ['about', 'section[aria-labelledby="faq-title"]']],
 }
 const routeKey = () => {
-  const h = location.hash.replace('#', '').split(/[/?]/)[0]
+  const h = currentRoute()
   return JOURNEYS[h] ? h : ''
 }
 

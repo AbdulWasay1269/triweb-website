@@ -11,7 +11,8 @@ import Media from './pages/Media.jsx'
 import Software from './pages/Software.jsx'
 import Portfolio from './pages/Portfolio.jsx'
 import Contact from './pages/Contact.jsx'
-import { ROUTES, parseHash, useRequestedRoute } from './router.jsx'
+import { pathFor, currentRoute, useRequestedRoute } from './router.jsx'
+import { applyMeta } from './lib/routes.js'
 import { initSmoothScroll, scrollToTarget, scrollToTop } from './lib/scroll.js'
 import { gsap, ScrollTrigger, reducedMotion } from './lib/motion.js'
 
@@ -21,7 +22,7 @@ const Universe = lazy(() => afterLoad().then(() => import('./universe/Universe.j
 const PAGES = { '': Home, about: About, media: Media, software: Software, work: Portfolio, contact: Contact }
 
 export default function App() {
-  const [route, setRoute] = useState(parseHash)
+  const [route, setRoute] = useState(currentRoute)
   const requested = useRequestedRoute()
   const curtain = useRef(null)
   const pendingSection = useRef(null)
@@ -44,7 +45,7 @@ export default function App() {
         else scrollToTop(false)
         return
       }
-      if (push) history.pushState(null, '', to ? `#${to}` : location.pathname + location.search)
+      if (push) history.pushState(null, '', pathFor(to))
       pendingSection.current = section || null
       if (reducedMotion) {
         setRoute(to)
@@ -68,7 +69,7 @@ export default function App() {
     return () => removeEventListener('triweb:navigate', onNav)
   }, [go])
 
-  // Browser back/forward and manually edited hashes
+  // Browser back/forward
   useEffect(() => {
     if (requested !== route) go(requested, null, false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,7 +77,7 @@ export default function App() {
 
   // New page is mounted under the curtain: reset scroll, then reveal
   useLayoutEffect(() => {
-    document.title = ROUTES[route].title
+    applyMeta(route)
     scrollToTop(true)
     const finish = () => {
       window.__triwebRevealed = true
