@@ -207,9 +207,26 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
         })
       })
       scene.add(s.group)
+      // Stand-in lights: when a scene is hidden its own lights drop out of the
+      // count, and three.js then recompiles every material's shader (a visible
+      // stutter while scrolling). Matching zero-intensity lights switch on in
+      // their place, so the light count, and the compiled shaders, never change.
+      s.standIns = []
+      s.group.traverse((o) => {
+        if (!o.isLight) return
+        const d = new o.constructor()
+        d.intensity = 0
+        d.visible = !s.group.visible
+        scene.add(d)
+        s.standIns.push(d)
+      })
       stations[key] = s
     }
     return stations[key]
+  }
+  // Keep each scene's stand-in lights opposite to the scene itself
+  const syncStandIns = () => {
+    for (const s of Object.values(stations)) for (const d of s.standIns) d.visible = !s.group.visible
   }
 
   // Path layout for the current page
@@ -240,6 +257,7 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     keys[0] = 0
     for (let i = 1; i < keys.length; i++) keys[i] = Math.max(keys[i], keys[i - 1] + 1)
     Object.values(stations).forEach((s) => (s.group.visible = false))
+    syncStandIns()
     path.forEach((k, i) => {
       // A station can appear once per page; later duplicates reuse the first slot
       const s = getStation(k)
@@ -439,7 +457,8 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
 
     // Where on the path are we?
     const target = computeChapter()
-    chapter = snap || reducedMotion ? target : damp(chapter, target, 5, dt)
+    // Follows the scroll closely (it trailed noticeably before), still eased so it glides
+    chapter = snap || reducedMotion ? target : damp(chapter, target, 9, dt)
     const i = Math.min(path.length - 1, Math.floor(chapter))
     const j = Math.min(path.length - 1, i + 1)
     const f = chapter - i
@@ -469,12 +488,12 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
       camLook.copy(tLook)
       snap = false
     } else {
-      camPos.x = damp(camPos.x, tPos.x, 4, dt)
-      camPos.y = damp(camPos.y, tPos.y, 4, dt)
-      camPos.z = damp(camPos.z, tPos.z, 4, dt)
-      camLook.x = damp(camLook.x, tLook.x, 5, dt)
-      camLook.y = damp(camLook.y, tLook.y, 5, dt)
-      camLook.z = damp(camLook.z, tLook.z, 5, dt)
+      camPos.x = damp(camPos.x, tPos.x, 7, dt)
+      camPos.y = damp(camPos.y, tPos.y, 7, dt)
+      camPos.z = damp(camPos.z, tPos.z, 7, dt)
+      camLook.x = damp(camLook.x, tLook.x, 9, dt)
+      camLook.y = damp(camLook.y, tLook.y, 9, dt)
+      camLook.z = damp(camLook.z, tLook.z, 9, dt)
     }
     camera.position.copy(camPos)
     // A slow cinematic drift, so the scene is always gently alive
@@ -550,6 +569,7 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
       // so the next scene never peeks in behind the current one
       const near = chapter > idx - 0.97 && chapter < idx + 1.02
       s.group.visible = near
+      for (const d of s.standIns) d.visible = !near
       if (near) s.update(t, reducedMotion ? 0 : dt, { pointer, chapter, f, local: chapter - idx, portrait, intro: ie, ray: rayOn ? raycaster.ray : null, cameraQuat: camera.quaternion, beams: pathAmb[idx]?.beams || 0, premiere: pathAmb[idx]?.premiere || 0, bokeh: pathAmb[idx]?.bokeh || 0, vh: window.scrollY / Math.max(1, window.innerHeight) })
     })
     cacheAge += dt
@@ -605,7 +625,10 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   // Step down: resolution first (never below the screen's own pixel size),
   // then bloom, then half rate. Step up: resolution back toward the screen's
   // full density (sharp on 4K and retina) once there is headroom.
+  let composerDrops = 0
   const tune = (now, renderMs, expectedMs) => {
+    // One long frame (a page layout, garbage collection) mustn't count as a slow device
+    renderMs = Math.min(renderMs, expectedMs * 2.5)
     ema = ema ? ema * 0.9 + renderMs * 0.1 : renderMs
     const over = ema > expectedMs * 1.28
     const under = ema < expectedMs * 1.06
@@ -621,11 +644,21 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
         composer = null
         bloom = null
         lens = null
+        composerDrops++
       } else if (divisor < 2) divisor = 2
-    } else if (fastFor > 4000 && ratio < maxRatioNow - 0.01 && divisor === 1) {
+    } else if (fastFor > 3000) {
+      // Headroom again: step back up, in reverse order. Before, half frame rate
+      // and a dropped glow were permanent, so one heavy moment (often the first
+      // scroll) left the scene choppy for the rest of the visit.
       lastChange = now
       fastFor = 0
-      setRatio(Math.min(maxRatioNow, ratio * 1.08))
+      if (divisor > 1) divisor = 1
+      else if (!composer && tier !== 'low' && composerDrops < 2) {
+        setupComposer()
+        composer.setPixelRatio(ratio)
+        composer.setSize(container.clientWidth || innerWidth, container.clientHeight || innerHeight)
+      }
+      else if (ratio < maxRatioNow - 0.01) setRatio(Math.min(maxRatioNow, ratio * 1.08))
     }
   }
   const loop = () => {
@@ -677,28 +710,47 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   const prebuild = () => {
     const missing = Object.keys(BUILDERS).find((k) => !stations[k])
     if (!missing) {
+      // Prepare every shader the scenes will ever need, before the visitor
+      // scrolls: also parts that start hidden, and for the render target the
+      // glow pass actually draws into. Shaders compiled on first use froze the
+      // page for a moment each, which showed up as stutter while scrolling.
+      const prepare = (root, compileFn) => {
+        const hidden = []
+        root.traverse((o) => {
+          if (!o.visible) {
+            hidden.push(o)
+            o.visible = true
+          }
+        })
+        syncStandIns()
+        // Both versions: through the glow pass, and straight to the screen (used
+        // if a device has to switch the glow off)
+        if (composer) {
+          renderer.setRenderTarget(composer.readBuffer)
+          compileFn(root)
+        }
+        renderer.setRenderTarget(null)
+        compileFn(root)
+        hidden.forEach((o) => (o.visible = false))
+        syncStandIns()
+      }
       if (renderer.extensions.has('KHR_parallel_shader_compile')) {
         // The GPU compiles in the background (Chrome, Edge). compileAsync collects
-        // programs synchronously, so scenes can be hidden again right after.
-        Object.values(stations).forEach((s) => (s.group.visible = true))
-        renderer.compileAsync(scene, camera).catch(() => {})
-        Object.values(stations).forEach((s) => (s.group.visible = false))
+        // programs synchronously, so everything can be hidden again right after.
+        prepare(scene, (root) => renderer.compileAsync(root, camera).catch(() => {}))
         needsLayout = true
         return
       }
-      // No background compiling (e.g. Firefox, Safari): compiling every scene at once
-      // froze the page, so prepare one scene per idle moment instead.
-      const queue = Object.values(stations)
+      // No background compiling (e.g. Firefox, Safari): compiling everything at
+      // once froze the page, so prepare one scene per idle moment instead.
+      const queue = [world.group, ...Object.values(stations).map((st) => st.group)]
       const compileNext = () => {
-        const s = queue.shift()
-        if (!s) {
+        const root = queue.shift()
+        if (!root) {
           needsLayout = true
           return
         }
-        const was = s.group.visible
-        s.group.visible = true
-        renderer.compile(s.group, camera, scene)
-        s.group.visible = was
+        prepare(root, (r) => renderer.compile(r, camera, scene))
         idleId = idle(compileNext, { timeout: 1500 })
       }
       idleId = idle(compileNext, { timeout: 1500 })
@@ -741,7 +793,7 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
       return { active: s && s.key, ui: isUI(el) || covered(x, y), el: el && el.tagName, hits: hits.length, label: hits[0] && hits[0].object.userData.__interactive?.label }
     },
     // Live numbers for the ?debug3d panel
-    stats: () => ({ tier, ratio: +ratio.toFixed(2), divisor, y: Math.round(scrollState.y), scrollY: Math.round(scrollY), frames: renderer.info.render.frame, velocity: +scrollState.velocity.toFixed(2), covered: isCovered(), hidden: document.hidden, gpu: (() => { try { const gl = renderer.getContext(); const e = gl.getExtension('WEBGL_debug_renderer_info'); return String(gl.getParameter(e ? e.UNMASKED_RENDERER_WEBGL : gl.RENDERER)) } catch { return '?' } })() }),
+    stats: () => ({ tier, ratio: +ratio.toFixed(2), divisor, programs: renderer.info.programs?.length ?? 0, y: Math.round(scrollState.y), scrollY: Math.round(scrollY), frames: renderer.info.render.frame, velocity: +scrollState.velocity.toFixed(2), covered: isCovered(), hidden: document.hidden, gpu: (() => { try { const gl = renderer.getContext(); const e = gl.getExtension('WEBGL_debug_renderer_info'); return String(gl.getParameter(e ? e.UNMASKED_RENDERER_WEBGL : gl.RENDERER)) } catch { return '?' } })() }),
     debug: () => ({ tier, ratio, bloom: !!composer, path, keys, chapter, stations: Object.keys(stations), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }),
     dispose() {
       cancelAnimationFrame(raf)
