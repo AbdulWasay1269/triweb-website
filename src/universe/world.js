@@ -284,6 +284,45 @@ export function createWorld(ctx) {
   bokehRig.add(bokeh)
   fxRoot.add(bokehRig)
 
+  // Ground mist: slow, drifting layers of haze low over the land, catching
+  // the sunset light. Adds depth and constant gentle motion (all real GPUs).
+  const mistRig = new THREE.Group()
+  mistRig.visible = ctx.tier !== 'low'
+  fxRoot.add(mistRig)
+  const mistMat = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uNoise: { value: noiseTexture() }, uWarm: { value: new THREE.Color(BRAND.ember) }, uCool: { value: new THREE.Color('#2a3550') }, uGlow: { value: 0 }, uSeed: { value: 0 } },
+    vertexShader: /* glsl */ `varying vec2 vUv; varying vec3 vW; void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: /* glsl */ `uniform float uTime; uniform sampler2D uNoise; uniform vec3 uWarm; uniform vec3 uCool; uniform float uGlow; uniform float uSeed; varying vec2 vUv; varying vec3 vW;
+      void main(){
+        vec2 p = vW.xz * 0.006 + vec2(uSeed, uSeed * 0.7);
+        float a = texture2D(uNoise, p + vec2(uTime * 0.006, uTime * 0.002)).r;
+        float b = texture2D(uNoise, p * 2.3 - vec2(uTime * 0.009, -uTime * 0.004)).g;
+        float m = smoothstep(0.35, 0.85, a * 0.65 + b * 0.45);
+        // Soft at the edges of the layer and never thick right in front of the lens
+        float edge = smoothstep(0.0, 0.25, vUv.x) * smoothstep(1.0, 0.75, vUv.x) * smoothstep(0.0, 0.2, vUv.y) * smoothstep(1.0, 0.6, vUv.y);
+        // Mostly cool navy haze, only lightly warmed by the sunset
+        vec3 col = mix(uCool, uWarm, 0.12 + uGlow * 0.12 + vUv.y * 0.1);
+        gl_FragColor = vec4(col * m * edge * 0.11, 1.0);
+      }`,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  })
+  const mistLayers = [
+    { y: 2.5, w: 420, d: 260, seed: 0.0 },
+    { y: 6.5, w: 520, d: 320, seed: 0.41 },
+  ].map((m) => {
+    const mat = mistMat.clone()
+    mat.uniforms.uNoise.value = mistMat.uniforms.uNoise.value
+    mat.uniforms.uSeed.value = m.seed
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(m.w, m.d), mat)
+    mesh.rotation.x = -Math.PI / 2
+    mesh.position.y = BASE_Y + m.y
+    mesh.frustumCulled = false
+    mistRig.add(mesh)
+    return { mesh, depth: m.d }
+  })
+
   const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), -BASE_Y)
   const ray = new THREE.Ray()
   const hit = new THREE.Vector3()
@@ -333,6 +372,15 @@ export function createWorld(ctx) {
         bokehMat.uniforms.uTime.value = t
         bokehMat.uniforms.uAmount.value = bokehAmt
         bokehMat.uniforms.uScale.value = pxScale
+      }
+      if (mistRig.visible) {
+        // The haze rides along in front of the camera, starting a little ahead of it
+        for (const m of mistLayers) {
+          m.mesh.position.x = camera.position.x
+          m.mesh.position.z = camera.position.z - m.depth / 2 - 18
+          m.mesh.material.uniforms.uTime.value = t
+          m.mesh.material.uniforms.uGlow.value = glow
+        }
       }
       // Cursor → ground
       ray.origin.copy(camera.position)

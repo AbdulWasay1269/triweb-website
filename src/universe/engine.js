@@ -114,7 +114,7 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   // blurry, so they may go up to 2x and never drop below 1.5x. If a phone's GPU
   // can't keep up, the controller lowers the frame rate rather than the sharpness.
   const handheld = matchMedia('(pointer: coarse)').matches
-  const maxRatio = tier === 'high' ? Math.min(dpr, 2) : tier === 'mid' ? Math.min(dpr, handheld ? 2 : 1.5) : 0.45
+  const maxRatio = tier === 'high' || tier === 'mid' ? Math.min(dpr, 2) : 0.45
   // Start one notch below the maximum on very dense screens and let the
   // controller earn the rest, so the first seconds are never the slow ones.
   let ratio = tier === 'low' ? 0.45 : Math.min(maxRatio, Math.max(handheld ? 1.5 : 1, dpr * 0.75))
@@ -177,8 +177,10 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   let composer = null
   let bloom = null
   let lens = null
+  // Cinematic glow (bloom) and the lens finish run on every device with a real
+  // graphics chip; if one can't keep up, the controller drops them automatically.
   const setupComposer = () => {
-    if (tier !== 'high') return
+    if (tier === 'low') return
     composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: renderer.capabilities.isWebGL2 ? 4 : 0 }))
     composer.addPass(new RenderPass(scene, camera))
     bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.85, 0.55, 0.72)
@@ -475,6 +477,11 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
       camLook.z = damp(camLook.z, tLook.z, 5, dt)
     }
     camera.position.copy(camPos)
+    // A slow cinematic drift, so the scene is always gently alive
+    if (!reducedMotion) {
+      camera.position.x += Math.sin(t * 0.11) * 0.45 + Math.sin(t * 0.047) * 0.25
+      camera.position.y += Math.sin(t * 0.15 + 1.3) * 0.22
+    }
     if (kick > 0) {
       camera.position.x += (Math.random() - 0.5) * kick * 0.25
       camera.position.y += (Math.random() - 0.5) * kick * 0.25
@@ -569,7 +576,9 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   // visitor is reading. Divisors of the refresh rate keep frame spacing even,
   // so there is no judder at 60, 120 or 144 Hz.
   let divisor = 1 // 1 = full refresh rate; raised only if the GPU can't keep up
-  const idleExtra = tier === 'low' ? 6 : 2
+  // Full frame rate all the time on real graphics chips, so the scene's motion
+  // never turns choppy when the visitor stops scrolling
+  const idleExtra = tier === 'low' ? 6 : 1
   let lastActive = performance.now()
   let lastScroll = 0
   let raf = 0
