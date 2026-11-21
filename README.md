@@ -90,10 +90,10 @@ With [ffmpeg](https://ffmpeg.org) installed, run from the project folder (replac
 ```bash
 # HD cut with sound
 ffmpeg -i input.mp4 -vf "scale=-2:'min(1920,ih)':flags=lanczos,fps=30" -c:v libx264 -preset fast -crf 21 -maxrate 5000k -bufsize 10000k -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart public/media/videos/full/my-reel.mp4
-# 8-second silent loop starting at 2s
-ffmpeg -ss 2 -t 8 -i input.mp4 -an -vf "scale=-2:'min(1280,ih)':flags=lanczos,fps=30" -c:v libx264 -preset medium -crf 21 -maxrate 3500k -bufsize 7000k -pix_fmt yuv420p -movflags +faststart public/media/videos/loop/my-reel.mp4
-# Poster frame at 3s
-ffmpeg -ss 3 -i input.mp4 -frames:v 1 -vf "scale=-2:1280" -q:v 3 public/media/posters/my-reel.jpg
+# 8-second silent loop starting at 2s (CRF 26 keeps it small with no visible loss at card size)
+ffmpeg -ss 2 -t 8 -i input.mp4 -an -vf "scale=-2:'min(1280,ih)':flags=lanczos,fps=30" -c:v libx264 -preset slow -crf 26 -pix_fmt yuv420p -movflags +faststart public/media/videos/loop/my-reel.mp4
+# Poster frame at 3s, as WebP
+ffmpeg -ss 3 -i input.mp4 -frames:v 1 -vf "scale=-2:1280" -c:v libwebp -quality 82 public/media/posters/my-reel.webp
 ```
 
 Then add an entry to `src/data/portfolio.js`:
@@ -168,7 +168,7 @@ Everything behind the content is one real-time Three.js world (`src/universe/`).
   - Hover and click: "Ignite" on the prism (an energy surge, a shockwave and a white-gold charged palette); "Align" on the frames (they turn into a triptych facing you).
   - Scroll: the frames open, the sculpture turns and the ribbons rise as you scroll away.
   - Idle: the sculpture rotates slowly and the ribbons keep flowing.
-- **Fallback.** Without WebGL the hero shows a still of the sculpture (`public/media/brand/hero-still.jpg`).
+- **Fallback.** Without WebGL the hero shows a still of the sculpture (`public/media/brand/hero-still.webp`).
 
 The previous layered-mountain hero (`blocks/LayeredHero.jsx`) is kept in the project, because inner pages still use its `PageHorizon`.
 
@@ -179,6 +179,13 @@ The previous layered-mountain hero (`blocks/LayeredHero.jsx`) is kept in the pro
 - **Divisions** open with a "Media Production / TriWeb / Software & AI" line. Cards carry a division identity (`<TiltCard division="media|software">`): film perforations for Media, blueprint dots and corner marks for Software & AI.
 - **Cards** have depth at rest; when engaged they tilt, lift their heading and icon forward, glow softly in orange and redraw their icon line by line.
 - **Final call to action** is a full-screen moment over the 3D star with one button: "Start your project".
+
+## Performance
+
+- **Pages load separately.** Home ships with the main bundle; every other page is its own file, fetched while the transition curtain closes and prefetched in idle time. Each page's HTML preloads its own files and the brand font.
+- **Media.** Preview loops are H.264 CRF 26 (about half the size of the originals, SSIM ≥ 0.977); posters and the hero still are WebP. Full-quality player videos are untouched. Videos only load near the screen and play only while visible.
+- **Scrolling.** Decorative CSS animations pause while their section is off-screen (`src/lib/offscreen.js`); the page height is cached instead of re-measured on every scroll event; the "Featured work" showcase pins by transform, so it causes no layout shift.
+- **3D.** Quality tier and pixel ratio adapt to the device; rendering pauses in hidden tabs and behind the page curtain; scenes are built and their shaders compiled one at a time in idle moments.
 
 ## Tech
 

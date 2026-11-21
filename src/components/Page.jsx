@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 import { initPageAnimations, ScrollTrigger } from '../lib/motion.js'
+import { pauseOffscreen } from '../lib/offscreen.js'
 
 /**
  * Wraps each page. Scroll animations start once the page-transition curtain
@@ -7,6 +8,7 @@ import { initPageAnimations, ScrollTrigger } from '../lib/motion.js'
  */
 export default function Page({ children }) {
   const ref = useRef(null)
+  useLayoutEffect(() => pauseOffscreen(ref.current), [])
   useLayoutEffect(() => {
     let cleanup = () => {}
     const start = () => {

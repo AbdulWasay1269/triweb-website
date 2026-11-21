@@ -3,7 +3,7 @@ import { Play, Code2 } from 'lucide-react'
 import Reel from '../components/Reel.jsx'
 import { useLightbox } from '../components/Lightbox.jsx'
 import { categories, portfolio } from '../data/portfolio.js'
-import { gsap, ScrollTrigger, isSmallScreen, reducedMotion, tiltHandlers } from '../lib/motion.js'
+import { gsap, ScrollTrigger, isSmallScreen, isTouch, reducedMotion, tiltHandlers } from '../lib/motion.js'
 import Button from '../components/Button.jsx'
 import { CaseStudyGrid } from './CaseStudies.jsx'
 import { caseStudies } from '../data/caseStudies.js'
@@ -121,8 +121,15 @@ export function WorkGrid({ initial = 'all', limitTo }) {
         },
       )
     }, grid.current)
-    ScrollTrigger.refresh()
-    return () => ctx.revert()
+    // Re-measure the page's scroll animations after the new cards have painted,
+    // so a filter click shows its result straight away
+    let t = 0
+    const raf = requestAnimationFrame(() => (t = setTimeout(() => ScrollTrigger.refresh(), 0)))
+    return () => {
+      cancelAnimationFrame(raf)
+      clearTimeout(t)
+      ctx.revert()
+    }
   }, [filter])
 
   return (
@@ -191,7 +198,9 @@ export function WorkShowcase({ items }) {
       const tween = gsap.to(el, {
         x: () => -distance(),
         ease: 'none',
-        scrollTrigger: { trigger: section.current, start: 'top top', end: () => `+=${distance()}`, pin: true, scrub: 0.8, invalidateOnRefresh: true },
+        // Pin by transform while smooth scrolling drives the page: same look, but the
+        // section no longer swaps to position:fixed, which the browser counted as a big layout shift
+        scrollTrigger: { trigger: section.current, start: 'top top', end: () => `+=${distance()}`, pin: true, pinType: isTouch ? 'fixed' : 'transform', scrub: 0.8, invalidateOnRefresh: true },
       })
       gsap.utils.toArray('.show-card').forEach((card) => {
         gsap.fromTo(

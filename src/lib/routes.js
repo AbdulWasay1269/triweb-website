@@ -52,7 +52,16 @@ const setTag = (selector, make, attr, value) => {
   el.setAttribute(attr, value)
 }
 const meta = (key, name, value) =>
-  setTag(`meta[${key}="${name}"]`, () => Object.assign(document.createElement('meta'), { [key === 'name' ? 'name' : 'property']: name }), 'content', value)
+  setTag(
+    `meta[${key}="${name}"]`,
+    () => {
+      const el = document.createElement('meta')
+      el.setAttribute(key, name) // 'property' isn't a DOM property, so it must be set as an attribute
+      return el
+    },
+    'content',
+    value,
+  )
 
 /** Keep the page's title, description, canonical link and share tags in step with the page shown. */
 export function applyMeta(key) {

@@ -664,12 +664,31 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   const prebuild = () => {
     const missing = Object.keys(BUILDERS).find((k) => !stations[k])
     if (!missing) {
-      // compileAsync collects programs synchronously, so scenes can be hidden again right after
-      Object.values(stations).forEach((s) => (s.group.visible = true))
-      if (renderer.extensions.has('KHR_parallel_shader_compile')) renderer.compileAsync(scene, camera).catch(() => {})
-      else renderer.compile(scene, camera)
-      Object.values(stations).forEach((s) => (s.group.visible = false))
-      needsLayout = true
+      if (renderer.extensions.has('KHR_parallel_shader_compile')) {
+        // The GPU compiles in the background (Chrome, Edge). compileAsync collects
+        // programs synchronously, so scenes can be hidden again right after.
+        Object.values(stations).forEach((s) => (s.group.visible = true))
+        renderer.compileAsync(scene, camera).catch(() => {})
+        Object.values(stations).forEach((s) => (s.group.visible = false))
+        needsLayout = true
+        return
+      }
+      // No background compiling (e.g. Firefox, Safari): compiling every scene at once
+      // froze the page, so prepare one scene per idle moment instead.
+      const queue = Object.values(stations)
+      const compileNext = () => {
+        const s = queue.shift()
+        if (!s) {
+          needsLayout = true
+          return
+        }
+        const was = s.group.visible
+        s.group.visible = true
+        renderer.compile(s.group, camera, scene)
+        s.group.visible = was
+        idleId = idle(compileNext, { timeout: 1500 })
+      }
+      idleId = idle(compileNext, { timeout: 1500 })
       return
     }
     getStation(missing)
