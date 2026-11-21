@@ -85,7 +85,17 @@ const Reel = forwardRef(function Reel(
   const objectFit = fit === 'contain' ? 'object-contain' : 'object-cover'
   return (
     <span className={`absolute inset-0 block overflow-hidden ${className}`}>
-      <img src={media.poster} alt="" loading={priority ? 'eager' : 'lazy'} decoding="async" className={`absolute inset-0 h-full w-full ${objectFit}`} style={{ objectPosition: position }} />
+      <img
+        src={media.poster}
+        srcSet={media.posterSet}
+        // "auto" lets the browser use the card's real width (lazy images); the rest is the fallback
+        sizes={priority ? '(max-width: 767px) 80vw, 420px' : 'auto, (max-width: 767px) 80vw, 420px'}
+        alt=""
+        loading={priority ? 'eager' : 'lazy'}
+        decoding="async"
+        className={`absolute inset-0 h-full w-full ${objectFit}`}
+        style={{ objectPosition: position }}
+      />
       <video
         ref={video}
         className={`absolute inset-0 h-full w-full ${objectFit} transition-opacity duration-700 ${shown ? 'opacity-100' : 'opacity-0'}`}

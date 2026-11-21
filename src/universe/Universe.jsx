@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
-import { createUniverse } from './engine.js'
 import { currentRoute } from '../lib/routes.js'
 import { reducedMotion } from '../lib/motion.js'
 
 const POSTERS = ['ootak-bbq', 'sweet-dreams-boba', 'mansion-a', 'by-the-flame', 'kashmir-cloth', 'tree-house', 'cactus-cafe', 'sweet-factory', 'flame-karahi', 'pocket-pizza', 'special-momos', 'tres-leches'].map(
-  (s) => `${import.meta.env.BASE_URL}media/posters/${s}.webp`,
+  // The 3D film frames are 270 px wide, so the 360 px posters are plenty
+  (s) => `${import.meta.env.BASE_URL}media/posters/${s}-360.webp`,
 )
 
 /** True while something opaque fills the whole screen (full-screen reel, video player). */
@@ -19,10 +19,23 @@ function isCovered() {
   return false
 }
 
-function hasWebGL() {
+/**
+ * Can this device draw the 3D world on a graphics chip? Without one (WebGL
+ * missing, or emulated in software such as SwiftShader or llvmpipe, which is
+ * what Google's PageSpeed test machine and browsers with hardware acceleration
+ * switched off use), the 3D would tie up the processor for seconds. Those
+ * devices get the designed still background instead, and never download the
+ * 3D engine at all.
+ */
+function hasHardwareWebGL() {
   try {
     const c = document.createElement('canvas')
-    return !!(c.getContext('webgl2') || c.getContext('webgl'))
+    const gl = c.getContext('webgl2') || c.getContext('webgl')
+    if (!gl) return false
+    const ext = gl.getExtension('WEBGL_debug_renderer_info')
+    const name = String(gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER))
+    gl.getExtension('WEBGL_lose_context')?.loseContext()
+    return !/swiftshader|llvmpipe|softpipe|software|basic render/i.test(name)
   } catch {
     return false
   }
@@ -57,7 +70,8 @@ export default function Universe() {
   }, [])
 
   useEffect(() => {
-    if (!hasWebGL() || /[?&]no3d\b/.test(location.search)) {
+    const forced = /[?&]quality=(high|mid|low)\b/.test(location.search)
+    if (/[?&]no3d\b/.test(location.search) || (!forced && !hasHardwareWebGL())) {
       document.documentElement.classList.add('no-webgl')
       setFailed(true)
       return
@@ -82,17 +96,22 @@ export default function Universe() {
       )
     }
     addEventListener('triweb:3dsection', onSection)
+    const fail = (err) => {
+      console.warn('3D background unavailable', err)
+      document.documentElement.classList.add('no-webgl')
+      setFailed(true)
+    }
     const start = () => {
       if (cancelled) return
-      try {
-        u = createUniverse(ref.current, { posters: POSTERS, reducedMotion, isCovered })
-        window.__universe = u
-        addEventListener('triweb:3dstate', onState)
-      } catch (err) {
-        console.warn('3D background unavailable', err)
-        document.documentElement.classList.add('no-webgl')
-        setFailed(true)
-      }
+      // The engine (and Three.js) downloads only on devices that will use it
+      import('./engine.js')
+        .then(({ createUniverse }) => {
+          if (cancelled) return
+          u = createUniverse(ref.current, { posters: POSTERS, reducedMotion, isCovered })
+          window.__universe = u
+          addEventListener('triweb:3dstate', onState)
+        })
+        .catch(fail)
     }
     // Start the 3D world only after the page itself has loaded and the browser
     // is idle, so the first view, fonts and videos come first.
