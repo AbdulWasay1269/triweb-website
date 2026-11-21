@@ -5,12 +5,7 @@ import { ScrollProgress, BackToTop, WhatsAppButton, SpeedVignette } from './comp
 import { LightboxProvider } from './components/Lightbox.jsx'
 import { LogoIcon } from './components/Logo.jsx'
 import Cursor from './components/Cursor.jsx'
-import Home from './pages/Home.jsx'
-import About from './pages/About.jsx'
-import Media from './pages/Media.jsx'
-import Software from './pages/Software.jsx'
-import Portfolio from './pages/Portfolio.jsx'
-import Contact from './pages/Contact.jsx'
+import { pageFor, loadPage, prefetchPages } from './pages/index.js'
 import { pathFor, currentRoute, useRequestedRoute } from './router.jsx'
 import { applyMeta } from './lib/routes.js'
 import { initSmoothScroll, scrollToTarget, scrollToTop } from './lib/scroll.js'
@@ -19,7 +14,6 @@ import { gsap, ScrollTrigger, reducedMotion } from './lib/motion.js'
 // The 3D engine (and Three.js) downloads only after the page has finished loading
 const afterLoad = () => new Promise((r) => (document.readyState === 'complete' ? r() : addEventListener('load', r, { once: true })))
 const Universe = lazy(() => afterLoad().then(() => import('./universe/Universe.jsx')))
-const PAGES = { '': Home, about: About, media: Media, software: Software, work: Portfolio, contact: Contact }
 
 export default function App() {
   const [route, setRoute] = useState(currentRoute)
@@ -47,8 +41,10 @@ export default function App() {
       }
       if (push) history.pushState(null, '', pathFor(to))
       pendingSection.current = section || null
+      // Each page's code is its own file; start fetching it while the curtain closes
+      const ready = loadPage(to)
       if (reducedMotion) {
-        setRoute(to)
+        ready.then(() => setRoute(to))
         return
       }
       busy.current = true
@@ -58,7 +54,7 @@ export default function App() {
         .set(curtain.current, { display: 'flex' })
         .fromTo('.curtain-panel', { yPercent: 100 }, { yPercent: 0, duration: 0.5, ease: 'expo.inOut', stagger: 0.05 })
         .fromTo('.curtain-logo', { autoAlpha: 0, scale: 0.85 }, { autoAlpha: 1, scale: 1, duration: 0.25 }, '-=0.25')
-        .call(() => setRoute(to))
+        .call(() => ready.then(() => setRoute(to)))
     },
     [route],
   )
@@ -82,6 +78,7 @@ export default function App() {
     const finish = () => {
       window.__triwebRevealed = true
       window.dispatchEvent(new Event('triweb:revealed'))
+      prefetchPages()
       ScrollTrigger.refresh()
       if (pendingSection.current) {
         const id = pendingSection.current
@@ -115,7 +112,7 @@ export default function App() {
 
   const dispatchQueued = (q) => window.dispatchEvent(new CustomEvent('triweb:navigate', { detail: { to: q.to, section: q.section } }))
 
-  const PageComponent = PAGES[route]
+  const PageComponent = pageFor(route)
 
   return (
     <LightboxProvider>

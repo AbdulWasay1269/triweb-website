@@ -4,9 +4,27 @@ import { gsap, ScrollTrigger, reducedMotion } from './motion.js'
 let lenis = null
 export const scrollState = { y: 0, velocity: 0, progress: 0 }
 
+/**
+ * Scrollable height of the page, cached. Reading scrollHeight inside scroll
+ * handlers forced the browser to recalculate layout on every scroll event;
+ * now it's re-measured only when the page's size actually changes.
+ */
+let maxScroll = 0
+let sizeWatch = null
+const measure = () => (maxScroll = Math.max(0, document.documentElement.scrollHeight - innerHeight))
+export function pageMax() {
+  if (!sizeWatch && typeof ResizeObserver !== 'undefined') {
+    sizeWatch = new ResizeObserver(measure)
+    sizeWatch.observe(document.body)
+    addEventListener('resize', measure, { passive: true })
+    measure()
+  }
+  return maxScroll
+}
+
 export function initSmoothScroll() {
   const onNative = () => {
-    const max = document.documentElement.scrollHeight - innerHeight
+    const max = pageMax()
     scrollState.y = scrollY
     scrollState.progress = max > 0 ? scrollY / max : 0
   }

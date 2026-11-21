@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, MessageCircle } from 'lucide-react'
-import { scrollToTop, scrollState } from '../lib/scroll.js'
+import { scrollToTop, scrollState, pageMax } from '../lib/scroll.js'
 import { reducedMotion } from '../lib/motion.js'
 import { site } from '../data/site.js'
 
@@ -8,7 +8,7 @@ export function ScrollProgress() {
   const ref = useRef(null)
   useEffect(() => {
     const onScroll = () => {
-      const max = document.documentElement.scrollHeight - innerHeight
+      const max = pageMax()
       if (ref.current) ref.current.style.transform = `scaleX(${max > 0 ? scrollY / max : 0})`
     }
     onScroll()
@@ -29,7 +29,7 @@ export function BackToTop() {
   useEffect(() => {
     const onScroll = () => {
       setShow(scrollY > innerHeight)
-      const max = document.documentElement.scrollHeight - innerHeight
+      const max = pageMax()
       if (ring.current) ring.current.style.strokeDashoffset = String(C * (1 - (max > 0 ? scrollY / max : 0)))
     }
     onScroll()

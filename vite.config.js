@@ -45,24 +45,48 @@ function seoTags(page, { noindex = false } = {}) {
  * Each page therefore opens directly, survives a refresh and previews correctly
  * when shared, even before any JavaScript runs.
  */
+const PAGE_FILES = { about: 'About', media: 'Media', software: 'Software', work: 'Portfolio', contact: 'Contact' }
+
 function seoPages() {
   let outDir = 'dist'
   const home = PAGES.find((p) => p.key === '')
+  const pageChunks = {} // page key → its JS files, so each page's HTML can fetch them straight away
+  let brandFont = '' // the Outfit (Latin) font file, preloaded so text appears in the brand font from the start
   return {
     name: 'triweb-seo-pages',
     configResolved(c) {
       outDir = c.build.outDir
+    },
+    generateBundle(_, bundle) {
+      brandFont = Object.keys(bundle).find((f) => /outfit-latin-wght-normal.*\.woff2$/.test(f)) || ''
+      const chunks = Object.values(bundle).filter((c) => c.type === 'chunk')
+      const byName = Object.fromEntries(chunks.map((c) => [c.fileName, c]))
+      const entry = chunks.find((c) => c.isEntry)
+      const inEntry = new Set([entry.fileName, ...entry.imports])
+      for (const [key, file] of Object.entries(PAGE_FILES)) {
+        const chunk = chunks.find((c) => c.facadeModuleId?.endsWith(`/src/pages/${file}.jsx`))
+        if (!chunk) continue
+        const files = new Set([chunk.fileName])
+        const add = (c) => c.imports.forEach((f) => !inEntry.has(f) && !files.has(f) && (files.add(f), add(byName[f])))
+        add(chunk)
+        pageChunks[key] = [...files]
+      }
     },
     transformIndexHtml: {
       order: 'pre',
       handler: (html) => html.replace('<!--seo-->', seoTags(home)).replaceAll('__SITE_URL__', SITE_URL),
     },
     closeBundle() {
-      const base = readFileSync(join(outDir, 'index.html'), 'utf8')
+      let base = readFileSync(join(outDir, 'index.html'), 'utf8')
+      if (brandFont) {
+        base = base.replace('<meta name="theme-color"', `<link rel="preload" as="font" type="font/woff2" crossorigin href="/${brandFont}" />\n    <meta name="theme-color"`)
+        writeFileSync(join(outDir, 'index.html'), base)
+      }
       const homeTags = seoTags(home)
       for (const page of PAGES) {
         if (page.key === '') continue
-        writeFileSync(join(outDir, `${page.path.slice(1)}.html`), base.replace(homeTags, seoTags(page)))
+        const preload = (pageChunks[page.key] || []).map((f) => `<link rel="modulepreload" crossorigin href="/${f}">`).join('\n    ')
+        writeFileSync(join(outDir, `${page.path.slice(1)}.html`), base.replace(homeTags, seoTags(page)).replace('</head>', `    ${preload}\n  </head>`))
       }
       writeFileSync(join(outDir, '404.html'), base.replace(homeTags, seoTags(home, { noindex: true })))
       if (!SITE_URL) {

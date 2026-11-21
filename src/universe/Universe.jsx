@@ -5,7 +5,7 @@ import { currentRoute } from '../lib/routes.js'
 import { reducedMotion } from '../lib/motion.js'
 
 const POSTERS = ['ootak-bbq', 'sweet-dreams-boba', 'mansion-a', 'by-the-flame', 'kashmir-cloth', 'tree-house', 'cactus-cafe', 'sweet-factory', 'flame-karahi', 'pocket-pizza', 'special-momos', 'tres-leches'].map(
-  (s) => `${import.meta.env.BASE_URL}media/posters/${s}.jpg`,
+  (s) => `${import.meta.env.BASE_URL}media/posters/${s}.webp`,
 )
 
 /** True while something opaque fills the whole screen (full-screen reel, video player). */
