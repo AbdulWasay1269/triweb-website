@@ -727,6 +727,8 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
       const hits = s ? raycaster.intersectObjects(s.hoverables, true) : []
       return { active: s && s.key, ui: isUI(el) || covered(x, y), el: el && el.tagName, hits: hits.length, label: hits[0] && hits[0].object.userData.__interactive?.label }
     },
+    // Live numbers for the ?debug3d panel
+    stats: () => ({ tier, ratio: +ratio.toFixed(2), divisor, y: Math.round(scrollState.y), scrollY: Math.round(scrollY), frames: renderer.info.render.frame, velocity: +scrollState.velocity.toFixed(2), covered: isCovered(), hidden: document.hidden, gpu: (() => { try { const gl = renderer.getContext(); const e = gl.getExtension('WEBGL_debug_renderer_info'); return String(gl.getParameter(e ? e.UNMASKED_RENDERER_WEBGL : gl.RENDERER)) } catch { return '?' } })() }),
     debug: () => ({ tier, ratio, bloom: !!composer, path, keys, chapter, stations: Object.keys(stations), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }),
     dispose() {
       cancelAnimationFrame(raf)

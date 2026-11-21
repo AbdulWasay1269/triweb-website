@@ -27,6 +27,7 @@ function isCovered() {
  * devices get the designed still background instead, and never download the
  * 3D engine at all.
  */
+const detected = { gpu: '(not checked)' }
 function hasHardwareWebGL() {
   try {
     const c = document.createElement('canvas')
@@ -35,6 +36,7 @@ function hasHardwareWebGL() {
     const ext = gl.getExtension('WEBGL_debug_renderer_info')
     const name = String(gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER))
     gl.getExtension('WEBGL_lose_context')?.loseContext()
+    detected.gpu = name
     return !/swiftshader|llvmpipe|softpipe|software|basic render/i.test(name)
   } catch {
     return false
@@ -133,6 +135,7 @@ export default function Universe() {
 
   return (
     <>
+      <Debug3D />
       <div className="universe-fallback pointer-events-none fixed inset-0 -z-10" aria-hidden="true">
         <div ref={ref} className={`absolute inset-0 transition-opacity duration-[1800ms] ease-out ${failed ? 'hidden' : ready ? 'opacity-100' : 'opacity-0'}`} />
         <div className="absolute inset-0 overflow-hidden">
@@ -155,5 +158,42 @@ export default function Universe() {
         Reset scene
       </button>
     </>
+  )
+}
+
+/**
+ * Diagnostics panel, shown only when the address has ?debug3d.
+ * Reports what the 3D background is doing on this device.
+ */
+export function Debug3D() {
+  const [info, setInfo] = useState(null)
+  useEffect(() => {
+    if (!/[?&]debug3d\b/.test(location.search)) return
+    let last = null
+    const id = setInterval(() => {
+      const u = window.__universe
+      const s = u?.stats?.()
+      const fps = s && last ? s.frames - last : null
+      last = s ? s.frames : null
+      setInfo({
+        running: !!u,
+        noWebgl: document.documentElement.classList.contains('no-webgl'),
+        detectedGpu: detected.gpu,
+        reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+        touch: matchMedia('(pointer: coarse)').matches,
+        screen: `${innerWidth}×${innerHeight} @${devicePixelRatio}x`,
+        fps,
+        ...s,
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
+  if (!info) return null
+  return (
+    <pre className="fixed bottom-24 left-2 z-[300] max-w-[92vw] whitespace-pre-wrap rounded-lg bg-black/85 p-3 font-mono text-[11px] leading-snug text-[#9effa1]">
+      {Object.entries(info)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join('\n')}
+    </pre>
   )
 }
