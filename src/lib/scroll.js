@@ -40,7 +40,11 @@ export function initSmoothScroll() {
     scrollState.progress = l.progress || 0
   })
   const tick = (time) => lenis && lenis.raf(time * 1000)
-  gsap.ticker.add(tick)
+  // Scroll first, then the animations: before, GSAP drew every scroll-linked
+  // animation with the previous frame's scroll position and Lenis then moved
+  // the page, forcing the browser to redo the layout mid-frame (one frame of
+  // lag plus extra work on every frame while scrolling).
+  gsap.ticker.add(tick, false, true)
   gsap.ticker.lagSmoothing(0)
   return () => {
     gsap.ticker.remove(tick)

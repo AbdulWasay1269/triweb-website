@@ -15,6 +15,7 @@ import { createAI } from './stations/ai.js'
 import { createAbout } from './stations/about.js'
 import { createFinale } from './stations/finale.js'
 import { scrollState } from '../lib/scroll.js'
+import { gsap } from '../lib/motion.js'
 import { isSoftwareRenderer } from '../three/useThreeStage.js'
 
 /* =======================================================================
@@ -118,7 +119,11 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   // Start one notch below the maximum on very dense screens and let the
   // controller earn the rest, so the first seconds are never the slow ones.
   let ratio = tier === 'low' ? 0.45 : Math.min(maxRatio, Math.max(handheld ? 1.5 : 1, dpr * 0.75))
+  // Phones keep 1.5x as long as they can; if the glow has already been switched
+  // off and frames are still slow, sharpness may go a little lower (1.2x)
+  // instead of halving the frame rate, which read as lag while scrolling.
   const minRatio = Math.min(dpr, tier === 'low' ? 0.4 : handheld ? 1.5 : 1)
+  const floorRatio = Math.min(dpr, tier === 'low' ? 0.4 : handheld ? 1.2 : 1)
   renderer.setPixelRatio(ratio)
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 1.05
@@ -601,7 +606,6 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   const idleExtra = tier === 'low' ? 6 : 1
   let lastActive = performance.now()
   let lastScroll = 0
-  let raf = 0
   let frameNo = 0
   let lastRender = performance.now()
   let lastTick = performance.now()
@@ -645,7 +649,8 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
         bloom = null
         lens = null
         composerDrops++
-      } else if (divisor < 2) divisor = 2
+      } else if (ratio > floorRatio + 0.01) setRatio(Math.max(floorRatio, ratio * 0.88))
+      else if (divisor < 2) divisor = 2
     } else if (fastFor > 3000) {
       // Headroom again: step back up, in reverse order. Before, half frame rate
       // and a dropped glow were permanent, so one heavy moment (often the first
@@ -653,6 +658,7 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
       lastChange = now
       fastFor = 0
       if (divisor > 1) divisor = 1
+      else if (ratio < minRatio - 0.01) setRatio(Math.min(minRatio, ratio * 1.08))
       else if (!composer && tier !== 'low' && composerDrops < 2) {
         setupComposer()
         composer.setPixelRatio(ratio)
@@ -661,8 +667,10 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
       else if (ratio < maxRatioNow - 0.01) setRatio(Math.min(maxRatioNow, ratio * 1.08))
     }
   }
+  // Runs on the same frame clock as the smooth scroll, right after it, so the
+  // 3D camera always uses this frame's scroll position (it was a frame behind
+  // the page before, which read as jitter between the page and the scene).
   const loop = () => {
-    raf = requestAnimationFrame(loop)
     const now = performance.now()
     const interval = now - lastTick
     lastTick = now
@@ -707,34 +715,54 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   // compile their shaders in the background, so scrolling never stalls.
   const idle = window.requestIdleCallback || ((fn) => setTimeout(() => fn({ timeRemaining: () => 8 }), 200))
   let idleId = 0
+  // Prepare every shader the scenes will ever need, before the visitor
+  // scrolls: also parts that start hidden, and for the render target the
+  // glow pass actually draws into. Shaders compiled on first use froze the
+  // page for a moment each, which showed up as stutter while scrolling.
+  const prepare = (root, compileFn) => {
+    const hidden = []
+    root.traverse((o) => {
+      if (!o.visible) {
+        hidden.push(o)
+        o.visible = true
+      }
+    })
+    syncStandIns()
+    // Both versions: through the glow pass, and straight to the screen (used
+    // if a device has to switch the glow off)
+    if (composer) {
+      renderer.setRenderTarget(composer.readBuffer)
+      compileFn(root)
+    }
+    renderer.setRenderTarget(null)
+    compileFn(root)
+    hidden.forEach((o) => (o.visible = false))
+    syncStandIns()
+  }
+  const parallel = renderer.extensions.has('KHR_parallel_shader_compile')
+  let earlyDone = false
   const prebuild = () => {
+    // First: this page's own scenes, right away. Before, nothing was prepared
+    // until every page's scenes had been built (several seconds on a phone),
+    // so an early scroll still compiled shaders mid-flight.
+    if (!earlyDone) {
+      earlyDone = true
+      if (parallel) prepare(scene, (root) => renderer.compileAsync(root, camera).catch(() => {}))
+      else {
+        const own = [world.group, ...new Set(path.map((k) => stations[k]?.group).filter(Boolean))]
+        const step = () => {
+          const r = own.shift()
+          if (!r) return (idleId = idle(prebuild, { timeout: 1500 }))
+          prepare(r, (x) => renderer.compile(x, camera, scene))
+          idleId = idle(step, { timeout: 1500 })
+        }
+        idleId = idle(step, { timeout: 1500 })
+        return
+      }
+    }
     const missing = Object.keys(BUILDERS).find((k) => !stations[k])
     if (!missing) {
-      // Prepare every shader the scenes will ever need, before the visitor
-      // scrolls: also parts that start hidden, and for the render target the
-      // glow pass actually draws into. Shaders compiled on first use froze the
-      // page for a moment each, which showed up as stutter while scrolling.
-      const prepare = (root, compileFn) => {
-        const hidden = []
-        root.traverse((o) => {
-          if (!o.visible) {
-            hidden.push(o)
-            o.visible = true
-          }
-        })
-        syncStandIns()
-        // Both versions: through the glow pass, and straight to the screen (used
-        // if a device has to switch the glow off)
-        if (composer) {
-          renderer.setRenderTarget(composer.readBuffer)
-          compileFn(root)
-        }
-        renderer.setRenderTarget(null)
-        compileFn(root)
-        hidden.forEach((o) => (o.visible = false))
-        syncStandIns()
-      }
-      if (renderer.extensions.has('KHR_parallel_shader_compile')) {
+      if (parallel) {
         // The GPU compiles in the background (Chrome, Edge). compileAsync collects
         // programs synchronously, so everything can be hidden again right after.
         prepare(scene, (root) => renderer.compileAsync(root, camera).catch(() => {}))
@@ -765,7 +793,7 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   if (reducedMotion) {
     frame(0)
     addEventListener('scroll', onScrollStatic, { passive: true })
-  } else loop()
+  } else gsap.ticker.add(loop)
 
   const onVisibility = () => {
     last = performance.now()
@@ -796,7 +824,7 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     stats: () => ({ tier, ratio: +ratio.toFixed(2), divisor, programs: renderer.info.programs?.length ?? 0, y: Math.round(scrollState.y), scrollY: Math.round(scrollY), frames: renderer.info.render.frame, velocity: +scrollState.velocity.toFixed(2), covered: isCovered(), hidden: document.hidden, gpu: (() => { try { const gl = renderer.getContext(); const e = gl.getExtension('WEBGL_debug_renderer_info'); return String(gl.getParameter(e ? e.UNMASKED_RENDERER_WEBGL : gl.RENDERER)) } catch { return '?' } })() }),
     debug: () => ({ tier, ratio, bloom: !!composer, path, keys, chapter, stations: Object.keys(stations), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }),
     dispose() {
-      cancelAnimationFrame(raf)
+      gsap.ticker.remove(loop)
       cancelAnimationFrame(scrollRaf)
       ;(window.cancelIdleCallback || clearTimeout)(idleId)
       ro.disconnect()

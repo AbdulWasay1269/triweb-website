@@ -827,3 +827,11 @@ html.hero-lit .universe-veil {
 [data-offscreen] *::after {
   animation-play-state: paused !important;
 }
+
+/* Touch screens have no hover tilt, so cards needn't each be kept as a separate
+   GPU layer (dozens of them made every scrolled frame slower to put together) */
+@media (hover: none) {
+  .card.will-change-transform {
+    will-change: auto;
+  }
+}
