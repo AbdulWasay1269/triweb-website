@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import { createUniverse } from './engine.js'
+import { currentRoute } from '../lib/routes.js'
 import { reducedMotion } from '../lib/motion.js'
 
 const POSTERS = ['ootak-bbq', 'sweet-dreams-boba', 'mansion-a', 'by-the-flame', 'kashmir-cloth', 'tree-house', 'cactus-cafe', 'sweet-factory', 'flame-karahi', 'pocket-pizza', 'special-momos', 'tres-leches'].map(
@@ -42,14 +43,14 @@ export default function Universe() {
   // Pages whose 3D mood should show through more strongly
   useEffect(() => {
     const sync = () => {
-      const route = (location.hash.replace(/^#\/?/, '').split(/[/?#]/)[0] || '').toLowerCase()
+      const route = currentRoute()
       document.documentElement.classList.toggle('page-vivid', route === 'media' || route === 'work')
     }
     sync()
-    window.addEventListener('hashchange', sync)
+    window.addEventListener('popstate', sync)
     window.addEventListener('triweb:revealed', sync)
     return () => {
-      window.removeEventListener('hashchange', sync)
+      window.removeEventListener('popstate', sync)
       window.removeEventListener('triweb:revealed', sync)
       document.documentElement.classList.remove('page-vivid')
     }

@@ -7,13 +7,15 @@ A multi-page, 3D animated website for TriWeb Solutions and its two divisions: Tr
 | Page | Address | What's on it |
 | --- | --- | --- |
 | Home | `/` | Hero with rotating 3D reels, the two divisions, featured work (sideways-scrolling showcase), why TriWeb, process, call to action |
-| About | `/#about` | Founders, story quote, values, the two divisions, why TriWeb, process |
-| Media Productions | `/#media` | Services with live demos, reel strip, brand identity, industries, studio work |
-| Software Company | `/#software` | Web development demo, AI workflow demo, automation use cases, enterprise and integrations |
-| Portfolio | `/#work` | Filterable grid, HD player with sound |
-| Contact | `/#contact` | Enquiry form, contact details, FAQ |
+| About | `/about` | Founders, story quote, values, the two divisions, why TriWeb, process |
+| Media Productions | `/media` | Services with live demos, reel strip, brand identity, industries, studio work |
+| Software Company | `/software` | Web development demo, AI workflow demo, automation use cases, enterprise and integrations |
+| Portfolio | `/portfolio` | Filterable grid, HD player with sound |
+| Contact | `/contact` | Enquiry form, contact details, FAQ |
 
-Pages use `#about`-style addresses, so the site works on any static host with no server setup, and every page can be bookmarked or shared.
+Every page has its own clean address, title, description and canonical link (edit them in `src/data/seo.js`). The build writes a real HTML file per page (`about.html`, `media.html` and so on) plus `sitemap.xml`, `robots.txt` and `404.html`, so each address opens directly, survives a refresh and shows the right preview when shared.
+
+Old `#media`-style links still work: the site moves them to the clean address as it loads, and `/work` permanently redirects to `/portfolio`.
 
 ## Run it
 
@@ -21,12 +23,16 @@ Requires [Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
 npm install        # once
-npm run dev        # local development at http://localhost:5173
+npm run dev        # local development at http://localhost:5190
 npm run build      # production build into /dist
-npm run preview    # preview the production build at http://localhost:4173
+npm run preview    # preview the production build at http://localhost:5191
 ```
 
-To publish, upload the contents of `dist/` to any static host: Netlify, Vercel, Cloudflare Pages, or regular hosting via cPanel/FTP.
+## Publish it
+
+**Vercel (recommended).** Import this GitHub repository at vercel.com. `vercel.json` already sets everything up: clean addresses, no trailing slashes, the `/work` → `/portfolio` redirect and the 404 page. Every push to `main` goes live automatically. Canonical links, the sitemap and share previews use the project's main Vercel domain, or your own domain once you connect it. To force a specific address, set `url` in `src/data/site.js` or a `SITE_URL` environment variable in Vercel.
+
+**Other hosting (cPanel / Apache).** Run `npm run build` and upload the contents of `dist/` (also kept in `website-ready-to-upload/`). The included `.htaccess` maps `/about` to `about.html` and so on. Hosts that can't serve `about.html` at `/about` won't support the clean addresses.
 
 ## What to fill in
 
@@ -70,9 +76,9 @@ src/
   components/    nav, footer, buttons, cards, video player, page wrapper
   visuals/       interactive service demos (Media + Software)
   three/         3D: scroll-driven background, network globe
-  data/          site settings, portfolio, media registry (edit these)
+  data/          site settings, page titles/SEO (seo.js), portfolio, media registry (edit these)
   lib/           animation and smooth-scroll helpers
-  router.jsx     page routing
+  router.jsx     page routing (clean URLs, Back/Forward)
 ```
 
 ## Adding new work
