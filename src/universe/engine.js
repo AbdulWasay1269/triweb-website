@@ -110,11 +110,15 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   const dpr = devicePixelRatio || 1
   // Up to the screen's full density on capable GPUs (crisp on 4K / retina);
   // the controller in the loop lowers it only when frames would suffer.
-  const maxRatio = tier === 'high' ? Math.min(dpr, 2) : tier === 'mid' ? Math.min(dpr, 1.5) : 0.45
+  // Phones and tablets have 2-3x screens: drawn at 1x the scene looked soft and
+  // blurry, so they may go up to 2x and never drop below 1.5x. If a phone's GPU
+  // can't keep up, the controller lowers the frame rate rather than the sharpness.
+  const handheld = matchMedia('(pointer: coarse)').matches
+  const maxRatio = tier === 'high' ? Math.min(dpr, 2) : tier === 'mid' ? Math.min(dpr, handheld ? 2 : 1.5) : 0.45
   // Start one notch below the maximum on very dense screens and let the
   // controller earn the rest, so the first seconds are never the slow ones.
-  let ratio = tier === 'low' ? 0.45 : Math.min(maxRatio, Math.max(1, dpr * 0.75))
-  const minRatio = Math.min(dpr, tier === 'low' ? 0.4 : 1)
+  let ratio = tier === 'low' ? 0.45 : Math.min(maxRatio, Math.max(handheld ? 1.5 : 1, dpr * 0.75))
+  const minRatio = Math.min(dpr, tier === 'low' ? 0.4 : handheld ? 1.5 : 1)
   renderer.setPixelRatio(ratio)
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 1.05
