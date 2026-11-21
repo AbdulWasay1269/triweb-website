@@ -5,6 +5,8 @@ import { reel } from '../data/media.js'
 import { reducedMotion } from '../lib/motion.js'
 
 const P = (s) => reel(s).poster
+// Small thumbnails and film-strip frames only need the 360 px version
+const PS = (s) => reel(s).posterSmall
 
 /* ---------- Digital marketing: a living social feed + growth curve ---------- */
 export function MarketingVisual({ active }) {
@@ -22,7 +24,7 @@ export function MarketingVisual({ active }) {
         <div className="relative h-full overflow-hidden">
           <div className={`grid grid-cols-3 gap-[2px] ${active && !reducedMotion ? '[animation:marquee-y_14s_linear_infinite]' : ''}`}>
             {[...feed, ...feed].map((s, i) => (
-              <img key={i} src={P(s)} alt="" loading="lazy" className="aspect-[3/4] w-full object-cover" />
+              <img key={i} src={PS(s)} alt="" loading="lazy" className="aspect-[3/4] w-full object-cover" />
             ))}
           </div>
         </div>
@@ -250,7 +252,7 @@ export function EditingVisual({ active }) {
               <span
                 key={s}
                 className={`h-full overflow-hidden rounded-md border ${t === 0 ? 'border-vermilion/60' : 'border-ember/50'}`}
-                style={{ flex: 1 + ((i * 7 + t * 3) % 4) * 0.4, backgroundImage: `url(${P(s)})`, backgroundSize: 'auto 100%', backgroundRepeat: 'repeat-x' }}
+                style={{ flex: 1 + ((i * 7 + t * 3) % 4) * 0.4, backgroundImage: `url(${PS(s)})`, backgroundSize: 'auto 100%', backgroundRepeat: 'repeat-x' }}
               />
             ))}
           </div>

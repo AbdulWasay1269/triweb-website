@@ -11,7 +11,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
 // Old #media-style links move to their clean address before anything renders
 upgradeLegacyUrl()
 
-console.info('%cTriWeb Solutions: build 2026-11-21b (Performance)', 'color:#ff3a20;font-weight:bold')
+console.info('%cTriWeb Solutions: build 2026-11-21c (No-GPU fallback)', 'color:#ff3a20;font-weight:bold')
 
 initJelly()
 

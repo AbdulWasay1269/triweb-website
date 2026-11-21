@@ -16,7 +16,7 @@ export function BrowserVisual() {
   const wire = mode === 'wire' || !built
   const mobile = device === 'mobile'
   const hero = reel('mansion').poster
-  const cards = ['sweet-factory', 'by-the-flame', 'cactus-cafe'].map((s) => reel(s).poster)
+  const cards = ['sweet-factory', 'by-the-flame', 'cactus-cafe'].map((s) => reel(s).posterSmall)
 
   const Seg = ({ value, set, opts }) => (
     <div className="flex rounded-full border border-ice/25 bg-obsidian/60 p-1" role="radiogroup">

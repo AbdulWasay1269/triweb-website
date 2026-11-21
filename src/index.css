@@ -802,9 +802,10 @@ html.universe-hover body {
 /* Without WebGL the hero shows a still of the 3D sculpture */
 .no-webgl .hero-still {
   display: block;
+  background-image: url('/media/brand/hero-still.webp');
 }
 @media (max-width: 767px) {
-  .no-webgl .hero-still { background-position: 70% 0%; background-size: auto 62%; background-repeat: no-repeat; }
+  .no-webgl .hero-still { background-image: url('/media/brand/hero-still-960.webp'); background-position: 70% 0%; background-size: auto 62%; background-repeat: no-repeat; }
 }
 
 /* Hero "golden hour": the global readability shade eases off while the hero is on screen */

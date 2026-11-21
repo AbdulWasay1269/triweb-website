@@ -87,7 +87,6 @@ export default function CinematicHero() {
       {/* Shown only when the 3D scene can't run: a still of the sculpture */}
       <div
         className="hero-still pointer-events-none absolute inset-0 -z-20 hidden bg-cover bg-center"
-        style={{ backgroundImage: `url(${import.meta.env.BASE_URL}media/brand/hero-still.webp)` }}
         aria-hidden="true"
       />
 

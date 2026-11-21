@@ -225,7 +225,7 @@ function Player({ items, index, setIndex, onClose }) {
                       <li key={it.id}>
                         <button onClick={() => (setStatus('loading'), setIndex(j))} className="group block w-full text-left" aria-label={`Open ${it.title}`}>
                           <span className="block aspect-[4/5] overflow-hidden rounded-xl ring-1 ring-bone/10">
-                            <img src={it.media.poster || it.media.image} alt="" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                            <img src={it.media.posterSmall || it.media.poster || it.media.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
                           </span>
                           <span className="mt-2 block truncate text-xs text-mist group-hover:text-bone">{it.title}</span>
                         </button>
