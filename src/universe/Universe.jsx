@@ -9,14 +9,24 @@ const POSTERS = ['ootak-bbq', 'sweet-dreams-boba', 'mansion-a', 'by-the-flame', 
 )
 
 /** True while something opaque fills the whole screen (full-screen reel, video player). */
+// Checked a few times a second, not every frame: measuring elements inside the
+// animation loop forced the browser to recalculate the page layout each frame.
+let coverAt = 0
+let coverVal = false
 function isCovered() {
   if (window.__lightboxOpen) return true
-  const els = document.querySelectorAll('[data-occlude]')
-  for (const el of els) {
+  const now = performance.now()
+  if (now - coverAt < 250) return coverVal
+  coverAt = now
+  coverVal = false
+  for (const el of document.querySelectorAll('[data-occlude]')) {
     const r = el.getBoundingClientRect()
-    if (r.top <= 1 && r.bottom >= innerHeight - 1 && r.left <= 1 && r.right >= innerWidth - 1) return true
+    if (r.top <= 1 && r.bottom >= innerHeight - 1 && r.left <= 1 && r.right >= innerWidth - 1) {
+      coverVal = true
+      break
+    }
   }
-  return false
+  return coverVal
 }
 
 /**
