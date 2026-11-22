@@ -127,8 +127,17 @@ export function GiantType({ lines }) {
         gsap.set(w, { autoAlpha: 1 })
         if (!chars.length) tl.fromTo(inner, { opacity: 0, rotateX: -70, z: -300 }, { opacity: 1, rotateX: 0, z: 0, duration: 1.2 }, at)
         if (chars.length) tl.fromTo(chars, { opacity: 0, rotateX: -95, z: -260, yPercent: 35 }, { opacity: 1, rotateX: 0, z: 0, yPercent: 0, duration: 1.1, stagger: 0.06 }, at)
-        tl.fromTo(inner, { scale: 0.86, letterSpacing: '0.06em' }, { scale: 1, letterSpacing: '-0.055em', duration: 1.4, ease: 'power2.out' }, at)
-          .fromTo(glow, { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 1.2 }, at + 0.3)
+        if (chars.length) {
+          // The letters close up as the word lands. Done by sliding each letter
+          // (GPU) rather than animating letter-spacing, which made the browser
+          // re-lay-out the giant word on every scrolled frame.
+          const mid = (chars.length - 1) / 2
+          const gap = () => parseFloat(getComputedStyle(inner).fontSize) * 0.115
+          gsap.set(inner, { letterSpacing: '-0.055em' })
+          tl.fromTo(inner, { scale: 0.86 }, { scale: 1, duration: 1.4, ease: 'power2.out' }, at)
+          tl.fromTo(chars, { x: (k) => (k - mid) * gap() }, { x: 0, duration: 1.4, ease: 'power2.out' }, at)
+        } else tl.fromTo(inner, { scale: 0.86, letterSpacing: '0.06em' }, { scale: 1, letterSpacing: '-0.055em', duration: 1.4, ease: 'power2.out' }, at)
+        tl.fromTo(glow, { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 1.2 }, at + 0.3)
           .fromTo(cap, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.7 }, at + 0.9)
         if (i < words.length - 1) {
           tl.to(inner, { z: 420, rotateX: 14, opacity: 0, duration: 1, ease: 'power2.in' }, at + 2.3)

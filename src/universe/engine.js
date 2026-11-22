@@ -184,8 +184,13 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   let lens = null
   // Cinematic glow (bloom) and the lens finish run on every device with a real
   // graphics chip; if one can't keep up, the controller drops them automatically.
+  // Phones and tablets draw without the glow passes. On a tall screen the sun
+  // sits right behind the sculpture and the glow washed the whole hero out into
+  // a white, blurry-looking haze (it only cleared once a slow phone dropped the
+  // glow to save time). Without it the scene is crisp from the first frame, and
+  // the phone's GPU has far less to do every frame, which keeps scrolling smooth.
   const setupComposer = () => {
-    if (tier === 'low') return
+    if (tier === 'low' || handheld) return
     composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: renderer.capabilities.isWebGL2 ? 4 : 0 }))
     composer.addPass(new RenderPass(scene, camera))
     bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.85, 0.55, 0.72)
@@ -212,6 +217,8 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
         })
       })
       scene.add(s.group)
+      const at = path.indexOf(key)
+      if (at >= 0) s.group.position.set(0, 0, -at * SPACING)
       // Stand-in lights: when a scene is hidden its own lights drop out of the
       // count, and three.js then recompiles every material's shader (a visible
       // stutter while scrolling). Matching zero-intensity lights switch on in
@@ -264,6 +271,10 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     Object.values(stations).forEach((s) => (s.group.visible = false))
     syncStandIns()
     path.forEach((k, i) => {
+      // Only the first two scenes are built right away; the rest are built in
+      // the background a moment later (prebuild), so starting the 3D world
+      // doesn't freeze the page. Their position is set when they are built.
+      if (!stations[k] && i > 1) return
       // A station can appear once per page; later duplicates reuse the first slot
       const s = getStation(k)
       if (path.indexOf(k) === i) s.group.position.set(0, 0, -i * SPACING)
@@ -630,7 +641,13 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   // then bloom, then half rate. Step up: resolution back toward the screen's
   // full density (sharp on 4K and retina) once there is headroom.
   let composerDrops = 0
+  // The first seconds are busy (scenes being built, shaders, videos and the
+  // page's own opening animation). Frames that are slow for those reasons
+  // made phones drop to a soft, blurry resolution right at the start, which
+  // then took a long time to recover; so the controller waits them out.
+  let warmUntil = Infinity
   const tune = (now, renderMs, expectedMs) => {
+    if (now < warmUntil) return
     // One long frame (a page layout, garbage collection) mustn't count as a slow device
     renderMs = Math.min(renderMs, expectedMs * 2.5)
     ema = ema ? ema * 0.9 + renderMs * 0.1 : renderMs
@@ -659,7 +676,7 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
       fastFor = 0
       if (divisor > 1) divisor = 1
       else if (ratio < minRatio - 0.01) setRatio(Math.min(minRatio, ratio * 1.08))
-      else if (!composer && tier !== 'low' && composerDrops < 2) {
+      else if (!composer && tier !== 'low' && !handheld && composerDrops < 2) {
         setupComposer()
         composer.setPixelRatio(ratio)
         composer.setSize(container.clientWidth || innerWidth, container.clientHeight || innerHeight)
@@ -760,7 +777,8 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
         return
       }
     }
-    const missing = Object.keys(BUILDERS).find((k) => !stations[k])
+    // This page's own scenes first, then the other pages'
+    const missing = path.find((k) => !stations[k]) || Object.keys(BUILDERS).find((k) => !stations[k])
     if (!missing) {
       if (parallel) {
         // The GPU compiles in the background (Chrome, Edge). compileAsync collects
@@ -784,16 +802,40 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
       idleId = idle(compileNext, { timeout: 1500 })
       return
     }
-    getStation(missing)
+    const built = getStation(missing)
+    // Its shaders get ready right away too, in case the visitor scrolls there soon
+    if (parallel) prepare(built.group, (root) => renderer.compileAsync(root, camera, scene).catch(() => {}))
+    else if (path.includes(missing)) prepare(built.group, (root) => renderer.compile(root, camera, scene))
     idleId = idle(prebuild, { timeout: 1500 })
   }
   idleId = idle(prebuild, { timeout: 1500 })
   const bodyRO = new ResizeObserver(() => (needsLayout = true))
   bodyRO.observe(document.body)
-  if (reducedMotion) {
-    frame(0)
-    addEventListener('scroll', onScrollStatic, { passive: true })
-  } else gsap.ticker.add(loop)
+  // Start drawing once the landscape is shaped and, where the browser can
+  // compile shaders in the background, once they are compiled: the first
+  // frame then costs no more than any other, so the page's opening animation
+  // doesn't stutter while the 3D scene starts up. (The scene fades in anyway.)
+  let started = false
+  let disposed = false
+  const begin = () => {
+    if (started || disposed) return
+    started = true
+    warmUntil = performance.now() + 3500
+    if (reducedMotion) {
+      frame(0)
+      addEventListener('scroll', onScrollStatic, { passive: true })
+    } else gsap.ticker.add(loop)
+  }
+  const warmups = [world.ready]
+  if (parallel) {
+    earlyDone = true
+    let compiled
+    prepare(scene, (root) => (compiled = renderer.compileAsync(root, camera).catch(() => {})))
+    warmups.push(compiled)
+  }
+  Promise.all(warmups).then(begin)
+  // Never wait for ever (a stuck driver): draw anyway after a few seconds
+  setTimeout(begin, 4000)
 
   const onVisibility = () => {
     last = performance.now()
@@ -824,6 +866,7 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     stats: () => ({ tier, ratio: +ratio.toFixed(2), divisor, programs: renderer.info.programs?.length ?? 0, y: Math.round(scrollState.y), scrollY: Math.round(scrollY), frames: renderer.info.render.frame, velocity: +scrollState.velocity.toFixed(2), covered: isCovered(), hidden: document.hidden, gpu: (() => { try { const gl = renderer.getContext(); const e = gl.getExtension('WEBGL_debug_renderer_info'); return String(gl.getParameter(e ? e.UNMASKED_RENDERER_WEBGL : gl.RENDERER)) } catch { return '?' } })() }),
     debug: () => ({ tier, ratio, bloom: !!composer, path, keys, chapter, stations: Object.keys(stations), calls: renderer.info.render.calls, tris: renderer.info.render.triangles }),
     dispose() {
+      disposed = true
       gsap.ticker.remove(loop)
       cancelAnimationFrame(scrollRaf)
       ;(window.cancelIdleCallback || clearTimeout)(idleId)
