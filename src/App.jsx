@@ -11,14 +11,28 @@ import { applyMeta } from './lib/routes.js'
 import { initSmoothScroll, scrollToTarget, scrollToTop } from './lib/scroll.js'
 import { gsap, ScrollTrigger, reducedMotion } from './lib/motion.js'
 
-// The 3D engine (and Three.js) downloads once the page is showing: just after
-// the opening curtain has lifted. (It used to wait for the full page load, which
-// also waited for every image and video further down; and when that load came
-// early, building the 3D scene held the curtain up.)
+// The 3D engine (and Three.js) downloads after the page is showing and has
+// loaded (or a few seconds have passed), and only at a moment when the visitor
+// isn't scrolling: setting up the 3D world takes the browser's full attention
+// for a moment, so it must never coincide with the opening or a scroll.
 const afterLoad = () =>
-  new Promise((r) => {
-    if (window.__triwebRevealed) return setTimeout(r, 300)
-    addEventListener('triweb:revealed', () => setTimeout(r, 300), { once: true })
+  new Promise((resolve) => {
+    let lastScroll = 0
+    const onScroll = () => (lastScroll = performance.now())
+    addEventListener('scroll', onScroll, { passive: true })
+    const calm = () => {
+      if (performance.now() - lastScroll < 800) return setTimeout(calm, 300)
+      removeEventListener('scroll', onScroll)
+      resolve()
+    }
+    const loaded = () => {
+      if (document.readyState === 'complete') return calm()
+      const t = setTimeout(calm, 3500)
+      addEventListener('load', () => (clearTimeout(t), calm()), { once: true })
+    }
+    const revealed = () => setTimeout(loaded, 600)
+    if (window.__triwebRevealed) revealed()
+    else addEventListener('triweb:revealed', revealed, { once: true })
   })
 const Universe = lazy(() => afterLoad().then(() => import('./universe/Universe.jsx')))
 
