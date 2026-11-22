@@ -92,7 +92,13 @@ export default function Universe() {
     let cancelled = false
     let idleId = 0
     const onState = (e) => setAltered(e.detail.altered)
-    const onReady = () => setReady(true)
+    const onReady = () => {
+      setReady(true)
+      // Cross-fade from the hero's still image to the live scene
+      const html = document.documentElement
+      html.classList.add('u3d-live')
+      setTimeout(() => html.classList.remove('u3d-still', 'u3d-live'), 1600)
+    }
     addEventListener('triweb:3dready', onReady)
     // A soft band of warm light crosses the scene at each section change
     const onSection = () => {
@@ -145,7 +151,7 @@ export default function Universe() {
     <>
       <Debug3D />
       <div className="universe-fallback pointer-events-none fixed inset-0 -z-10" aria-hidden="true">
-        <div ref={ref} className={`absolute inset-0 transition-opacity duration-[1800ms] ease-out ${failed ? 'hidden' : ready ? 'opacity-100' : 'opacity-0'}`} />
+        <div ref={ref} className={`absolute inset-0 transition-opacity duration-700 ease-out ${failed ? 'hidden' : ready ? 'opacity-100' : 'opacity-0'}`} />
         <div className="absolute inset-0 overflow-hidden">
           <div ref={sweep} className="absolute inset-y-[-10%] left-0 w-[70%] opacity-0 [background:linear-gradient(90deg,transparent,rgba(255,122,69,0.10)_40%,rgba(255,210,189,0.16)_50%,rgba(255,122,69,0.10)_60%,transparent)]" />
         </div>

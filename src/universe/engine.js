@@ -271,9 +271,12 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     Object.values(stations).forEach((s) => (s.group.visible = false))
     syncStandIns()
     path.forEach((k, i) => {
+      // Only the first scene is built when the 3D world starts (so starting it
+      // is a short moment, not a long freeze); the rest are built one by one
+      // in pauses between scrolls (prebuild) and get their position then.
+      const s = i === 0 ? getStation(k) : stations[k]
       // A station can appear once per page; later duplicates reuse the first slot
-      const s = getStation(k)
-      if (path.indexOf(k) === i) s.group.position.set(0, 0, -i * SPACING)
+      if (s && path.indexOf(k) === i) s.group.position.set(0, 0, -i * SPACING)
     })
   }
 
@@ -288,8 +291,19 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   const lb = new THREE.Vector3()
   let portrait = false
   let chapter = 0 // float position along the path
+  const fallbackAt = new THREE.Vector3()
   const stationCam = (key, pos, look) => {
-    const s = getStation(key)
+    const s = stations[key]
+    if (!s) {
+      // Not built yet (it will be in the next pause): aim where it will stand,
+      // never build it here, mid-scroll
+      const first = stations[path[0]]
+      fallbackAt.set(0, 0, -path.indexOf(key) * SPACING)
+      look.copy(first.camera.look).add(fallbackAt)
+      pos.copy(first.camera.pos).add(fallbackAt)
+      if (portrait) pos.sub(look).multiplyScalar(1.45).add(look)
+      return
+    }
     look.copy(s.camera.look).add(s.group.position)
     pos.copy(s.camera.pos).add(s.group.position)
     if (portrait) pos.sub(look).multiplyScalar(1.45).add(look)
@@ -452,7 +466,9 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   let fov = 50
   let pickTick = 0
   // Opening shot: the camera glides in from high and far, the light fades up
-  let intro = reducedMotion ? 1 : 0
+  // When the hero's still image was shown while loading, the live scene starts
+  // in the same final framing so the cross-fade is seamless (no second opening)
+  let intro = reducedMotion || document.documentElement.classList.contains('u3d-still') ? 1 : 0
   let ready = false
   const ease = (x) => 1 - Math.pow(1 - x, 3)
   let lastSection = -1
@@ -788,7 +804,8 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
         return
       }
     }
-    const missing = Object.keys(BUILDERS).find((k) => !stations[k])
+    // This page's own scenes first, then the other pages'
+    const missing = path.find((k) => !stations[k]) || Object.keys(BUILDERS).find((k) => !stations[k])
     if (!missing) {
       if (parallel) {
         // The GPU compiles in the background (Chrome, Edge). compileAsync collects
