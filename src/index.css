@@ -836,11 +836,3 @@ html.hero-lit .universe-veil {
     will-change: auto;
   }
 }
-
-/* Layers that only slide while scrolling (parallax, drifting headings) get
-   their own GPU layer: they are then moved, not redrawn, on every scrolled
-   frame (the blurred glows among them were costly to redraw on phones). */
-[data-parallax],
-[data-depth] {
-  will-change: transform;
-}

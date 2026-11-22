@@ -271,10 +271,6 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     Object.values(stations).forEach((s) => (s.group.visible = false))
     syncStandIns()
     path.forEach((k, i) => {
-      // Only the first two scenes are built right away; the rest are built in
-      // the background a moment later (prebuild), so starting the 3D world
-      // doesn't freeze the page. Their position is set when they are built.
-      if (!stations[k] && i > 1) return
       // A station can appear once per page; later duplicates reuse the first slot
       const s = getStation(k)
       if (path.indexOf(k) === i) s.group.position.set(0, 0, -i * SPACING)
@@ -758,6 +754,21 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   }
   const parallel = renderer.extensions.has('KHR_parallel_shader_compile')
   let earlyDone = false
+  // Background preparation (building other pages' scenes, compiling shaders)
+  // never runs while the visitor is scrolling: it waits for a pause, so it
+  // can't cause a hitch mid-scroll.
+  let lastScrollAt = 0
+  const onAnyScroll = () => (lastScrollAt = performance.now())
+  addEventListener('scroll', onAnyScroll, { passive: true })
+  const busy = () => performance.now() - lastScrollAt < 700 || Math.abs(scrollState.velocity) > 0.3
+  const whenCalm = (fn) => {
+    const run = () => {
+      if (disposed) return
+      if (busy()) idleId = idle(run, { timeout: 1500 })
+      else fn()
+    }
+    idleId = idle(run, { timeout: 1500 })
+  }
   const prebuild = () => {
     // First: this page's own scenes, right away. Before, nothing was prepared
     // until every page's scenes had been built (several seconds on a phone),
@@ -769,16 +780,15 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
         const own = [world.group, ...new Set(path.map((k) => stations[k]?.group).filter(Boolean))]
         const step = () => {
           const r = own.shift()
-          if (!r) return (idleId = idle(prebuild, { timeout: 1500 }))
+          if (!r) return (whenCalm(prebuild))
           prepare(r, (x) => renderer.compile(x, camera, scene))
-          idleId = idle(step, { timeout: 1500 })
+          whenCalm(step)
         }
-        idleId = idle(step, { timeout: 1500 })
+        whenCalm(step)
         return
       }
     }
-    // This page's own scenes first, then the other pages'
-    const missing = path.find((k) => !stations[k]) || Object.keys(BUILDERS).find((k) => !stations[k])
+    const missing = Object.keys(BUILDERS).find((k) => !stations[k])
     if (!missing) {
       if (parallel) {
         // The GPU compiles in the background (Chrome, Edge). compileAsync collects
@@ -797,18 +807,18 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
           return
         }
         prepare(root, (r) => renderer.compile(r, camera, scene))
-        idleId = idle(compileNext, { timeout: 1500 })
+        whenCalm(compileNext)
       }
-      idleId = idle(compileNext, { timeout: 1500 })
+      whenCalm(compileNext)
       return
     }
     const built = getStation(missing)
     // Its shaders get ready right away too, in case the visitor scrolls there soon
     if (parallel) prepare(built.group, (root) => renderer.compileAsync(root, camera, scene).catch(() => {}))
     else if (path.includes(missing)) prepare(built.group, (root) => renderer.compile(root, camera, scene))
-    idleId = idle(prebuild, { timeout: 1500 })
+    whenCalm(prebuild)
   }
-  idleId = idle(prebuild, { timeout: 1500 })
+  whenCalm(prebuild)
   const bodyRO = new ResizeObserver(() => (needsLayout = true))
   bodyRO.observe(document.body)
   // Start drawing once the landscape is shaped and, where the browser can
@@ -827,15 +837,31 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     } else gsap.ticker.add(loop)
   }
   const warmups = [world.ready]
+  earlyDone = true
   if (parallel) {
-    earlyDone = true
     let compiled
     prepare(scene, (root) => (compiled = renderer.compileAsync(root, camera).catch(() => {})))
     warmups.push(compiled)
+  } else {
+    // No background compiling (Safari, Firefox): compile this page's scenes one
+    // at a time in free moments before the first frame, instead of all at once
+    // inside it (a freeze of a second or more on phones).
+    warmups.push(
+      new Promise((resolve) => {
+        const own = [world.group, ...new Set(path.map((k) => stations[k]?.group).filter(Boolean))]
+        const step = () => {
+          const r = own.shift()
+          if (!r) return resolve()
+          prepare(r, (x) => renderer.compile(x, camera, scene))
+          whenCalm(step)
+        }
+        whenCalm(step)
+      }),
+    )
   }
   Promise.all(warmups).then(begin)
-  // Never wait for ever (a stuck driver): draw anyway after a few seconds
-  setTimeout(begin, 4000)
+  // Never wait for ever (a stuck driver): draw anyway after a while
+  setTimeout(begin, 8000)
 
   const onVisibility = () => {
     last = performance.now()
@@ -878,6 +904,7 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
       removeEventListener('triweb:3dreset', onReset)
       removeEventListener('triweb:revealed', onRevealed)
       removeEventListener('scroll', onScrollStatic)
+      removeEventListener('scroll', onAnyScroll)
       document.removeEventListener('visibilitychange', onVisibility)
       document.documentElement.classList.remove('universe-hover')
       scene.traverse((o) => {
