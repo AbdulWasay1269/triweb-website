@@ -805,7 +805,8 @@ html.universe-hover body {
   background-image: url('/media/brand/hero-still.webp');
 }
 @media (max-width: 767px) {
-  .no-webgl .hero-still { background-image: url('/media/brand/hero-still-960.webp'); background-position: 70% 0%; background-size: auto 62%; background-repeat: no-repeat; }
+  /* Full-size still: phone screens are 2-3x dense, the 960px version looked blurry */
+  .no-webgl .hero-still { background-position: 70% 0%; background-size: auto 62%; background-repeat: no-repeat; }
 }
 
 /* Hero "golden hour": the global readability shade eases off while the hero is on screen */
@@ -834,4 +835,12 @@ html.hero-lit .universe-veil {
   .card.will-change-transform {
     will-change: auto;
   }
+}
+
+/* Layers that only slide while scrolling (parallax, drifting headings) get
+   their own GPU layer: they are then moved, not redrawn, on every scrolled
+   frame (the blurred glows among them were costly to redraw on phones). */
+[data-parallax],
+[data-depth] {
+  will-change: transform;
 }

@@ -11,8 +11,15 @@ import { applyMeta } from './lib/routes.js'
 import { initSmoothScroll, scrollToTarget, scrollToTop } from './lib/scroll.js'
 import { gsap, ScrollTrigger, reducedMotion } from './lib/motion.js'
 
-// The 3D engine (and Three.js) downloads only after the page has finished loading
-const afterLoad = () => new Promise((r) => (document.readyState === 'complete' ? r() : addEventListener('load', r, { once: true })))
+// The 3D engine (and Three.js) downloads once the page is showing: just after
+// the opening curtain has lifted. (It used to wait for the full page load, which
+// also waited for every image and video further down; and when that load came
+// early, building the 3D scene held the curtain up.)
+const afterLoad = () =>
+  new Promise((r) => {
+    if (window.__triwebRevealed) return setTimeout(r, 300)
+    addEventListener('triweb:revealed', () => setTimeout(r, 300), { once: true })
+  })
 const Universe = lazy(() => afterLoad().then(() => import('./universe/Universe.jsx')))
 
 export default function App() {
@@ -78,7 +85,9 @@ export default function App() {
     const finish = () => {
       window.__triwebRevealed = true
       window.dispatchEvent(new Event('triweb:revealed'))
-      prefetchPages()
+      // Other pages download later, so they don't compete with this one's
+      // images and the 3D scene in the first seconds
+      setTimeout(prefetchPages, 6000)
       ScrollTrigger.refresh()
       if (pendingSection.current) {
         const id = pendingSection.current
@@ -102,7 +111,8 @@ export default function App() {
     if (firstPaint.current) {
       // Opening: curtain already covers the screen
       firstPaint.current = false
-      tl.fromTo('.curtain-logo', { autoAlpha: 0, scale: 0.8 }, { autoAlpha: 1, scale: 1, duration: 0.6, ease: 'expo.out' }).fromTo('.curtain-logo svg', { rotateY: -90 }, { rotateY: 0, duration: 0.9, ease: 'expo.out' }, '<')
+      // Kept brisk: the page is ready underneath, so the logo only says hello
+      tl.fromTo('.curtain-logo', { autoAlpha: 0, scale: 0.8 }, { autoAlpha: 1, scale: 1, duration: 0.4, ease: 'expo.out' }).fromTo('.curtain-logo svg', { rotateY: -90 }, { rotateY: 0, duration: 0.55, ease: 'expo.out' }, '<')
     }
     tl.to('.curtain-logo', { autoAlpha: 0, duration: 0.2 }, '+=0.02')
       .add(finish)

@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { BRAND, lightShaft, glowTexture, noiseTexture } from './shared.js'
-import { snoise } from './noise.js'
+import { bakeHeights } from './terrain.js'
 
 /**
  * The continuous world every scene sits in, so the site reads as one film:
@@ -80,7 +80,8 @@ export function createWorld(ctx) {
   const geo = new THREE.PlaneGeometry(W, L, seg[0], seg[1])
   geo.rotateX(-Math.PI / 2)
   geo.translate(0, 0, -L / 2 + 320)
-  bakeTerrain(geo, 340)
+  // The landscape's shape is computed in a background worker (see terrain.worker.js)
+  const terrainReady = bakeTerrain(geo, 340)
   const terrainMat = new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
@@ -149,6 +150,8 @@ export function createWorld(ctx) {
   const terrain = new THREE.Mesh(geo, terrainMat)
   terrain.position.y = BASE_Y
   terrain.frustumCulled = false
+  terrain.visible = false
+  terrainReady.then(() => (terrain.visible = true))
   g.add(terrain)
 
 
@@ -331,6 +334,7 @@ export function createWorld(ctx) {
   return {
     group: g,
     baseY: BASE_Y,
+    ready: terrainReady,
     update(t, dt, { camera, pointer, ndc, chapter, flash, sunX = 0, glow = 0, premiere = 0, bokeh: bokehAmt = 0, aurora = 0, pxScale = 400 }) {
       terrainMat.uniforms.uTime.value = t
       terrainMat.uniforms.uCam.value.copy(camera.position)
@@ -393,48 +397,34 @@ export function createWorld(ctx) {
   }
 }
 
-/* Terrain shape, computed once (identical to the former per-frame vertex shader) */
-const smooth = (e0, e1, x) => {
-  const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)))
-  return t * t * (3 - 2 * t)
-}
-function terrainHeight(x, z, span) {
-  const d = smooth(-span * 0.15, -span * 1.25, z)
-  const ridge = (px, pz) => {
-    const n = 1 - Math.abs(snoise(px, pz, 0))
-    return n * n
-  }
-  const valley = smooth(18, 78, Math.abs(x)) + 0.04
-  let h = ridge(x * 0.011, z * 0.011) * 0.62 + ridge(x * 0.027 + 7, z * 0.027 + 7) * 0.28 + ridge(x * 0.06 + 3, z * 0.06 + 3) * 0.1
-  h *= valley * (42 + (9 - 42) * d)
-  // Terraces: the organic slopes snap into steps as the world turns digital
-  const stepH = 2.2
-  const t = smooth(0.35, 0.95, d)
-  return h + (Math.floor(h / stepH + 0.5) * stepH - h) * t
-}
-function bakeTerrain(geo, span) {
+function applyTerrain(geo, { heights, normals }) {
   const pos = geo.attributes.position
-  const n = pos.count
-  const heights = new Float32Array(n)
-  const normals = new Float32Array(n * 3)
-  const e = 1.6
-  for (let i = 0; i < n; i++) {
-    const x = pos.getX(i)
-    const z = pos.getZ(i)
-    const h = terrainHeight(x, z, span)
-    const hx = terrainHeight(x + e, z, span)
-    const hz = terrainHeight(x, z + e, span)
-    const nx = h - hx
-    const nz = h - hz
-    const len = Math.hypot(nx, e, nz)
-    normals[i * 3] = nx / len
-    normals[i * 3 + 1] = e / len
-    normals[i * 3 + 2] = nz / len
-    heights[i] = h
-    pos.setY(i, pos.getY(i) + h)
-  }
+  for (let i = 0; i < pos.count; i++) pos.setY(i, pos.getY(i) + heights[i])
   pos.needsUpdate = true
   geo.setAttribute('normal', new THREE.BufferAttribute(normals, 3))
   geo.setAttribute('aH', new THREE.BufferAttribute(heights, 1))
   geo.computeBoundingSphere()
+}
+function bakeTerrain(geo, span) {
+  const n = geo.attributes.position.count
+  // Placeholders so the material compiles with the right attributes meanwhile
+  geo.setAttribute('aH', new THREE.BufferAttribute(new Float32Array(n), 1))
+  const inPage = () => applyTerrain(geo, bakeHeights(geo.attributes.position.array, span))
+  return new Promise((resolve) => {
+    let worker
+    try {
+      worker = new Worker(new URL('./terrain.worker.js', import.meta.url), { type: 'module' })
+    } catch {
+      inPage()
+      return resolve()
+    }
+    const done = (fn) => {
+      worker.terminate()
+      fn()
+      resolve()
+    }
+    worker.onmessage = ({ data }) => done(() => applyTerrain(geo, data))
+    worker.onerror = () => done(inPage)
+    worker.postMessage({ positions: geo.attributes.position.array.slice(), span })
+  })
 }

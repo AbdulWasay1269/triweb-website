@@ -125,15 +125,13 @@ export default function Universe() {
         })
         .catch(fail)
     }
-    // Start the 3D world only after the page itself has loaded and the browser
-    // is idle, so the first view, fonts and videos come first.
+    // Start the 3D world once the page is showing (this component itself is
+    // only loaded then, see App.jsx) and the browser has a free moment.
     const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 300))
-    const schedule = () => (idleId = idle(start, { timeout: 700 }))
-    if (document.readyState === 'complete') schedule()
-    else addEventListener('load', schedule, { once: true })
+    const schedule = () => (idleId = idle(start, { timeout: 500 }))
+    schedule()
     return () => {
       cancelled = true
-      removeEventListener('load', schedule)
       ;(window.cancelIdleCallback || clearTimeout)(idleId)
       removeEventListener('triweb:3dstate', onState)
       removeEventListener('triweb:3dready', onReady)
