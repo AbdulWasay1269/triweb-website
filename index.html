@@ -3,9 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="triweb-version" content="2026-11-21c no-gpu-fallback" />
+    <meta name="triweb-version" content="2026-11-23 direct-hero" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="theme-color" content="#0b1220" />
+    <!-- First paint: dark page and, on the home page, the hero's picture straight
+         from the HTML (before any script runs), so the hero never starts blank.
+         The live 3D scene later fades in over it in the same framing. -->
+    <style>
+      html { background: #0b1220; }
+      #boot-hero { display: none; position: absolute; inset: 0 0 auto 0; height: 100vh; height: 100svh; pointer-events: none; }
+      html.boot-home #boot-hero { display: block; }
+      #boot-hero > div { position: absolute; inset: 0; }
+      #boot-hero .s { background: url(/media/brand/hero-still.webp) center / cover no-repeat; }
+      #boot-hero .g1 { background: linear-gradient(90deg, rgba(11,18,32,0.62) 0%, rgba(11,18,32,0.38) 30%, rgba(11,18,32,0) 54%); }
+      #boot-hero .g2 { top: auto; height: 8rem; background: linear-gradient(to bottom, transparent, #0b1220); }
+      @media (max-width: 767px) {
+        #boot-hero .s { background: url(/media/brand/hero-still-portrait.webp) 50% 0 / auto 58.1% no-repeat; }
+        #boot-hero .g1 { background: linear-gradient(0deg, rgba(11,18,32,0.9) 0%, rgba(11,18,32,0.6) 42%, rgba(11,18,32,0) 62%); }
+      }
+    </style>
+    <script>
+      if (location.pathname === '/' || location.pathname === '/index.html') {
+        document.documentElement.classList.add('boot-home')
+        var l = document.createElement('link')
+        l.rel = 'preload'; l.as = 'image'; l.setAttribute('fetchpriority', 'high')
+        l.href = matchMedia('(max-width: 767px)').matches ? '/media/brand/hero-still-portrait.webp' : '/media/brand/hero-still.webp'
+        document.head.appendChild(l)
+      }
+    </script>
     <!-- Google Search Console ownership check -->
     <meta name="google-site-verification" content="B3fp9uRKGfvXTJ6KWjIxcoecMaDSSaAMTfDgtArrMr4" />
     <!-- Page title, description, canonical and share tags are written in per page by
@@ -44,6 +69,7 @@
         TriWeb Solutions: please enable JavaScript to view this website.
       </p>
     </noscript>
+    <div id="boot-hero" aria-hidden="true"><div class="s"></div><div class="g1"></div><div class="g2"></div></div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

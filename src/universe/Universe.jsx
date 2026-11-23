@@ -124,10 +124,11 @@ export default function Universe() {
       window.__u3dState = 'failed'
       dispatchEvent(new Event('triweb:3dfail'))
     }
+    // The engine (and Three.js) downloads right away, only on devices that will use it
+    const engine = import('./engine.js')
     const start = () => {
       if (cancelled) return
-      // The engine (and Three.js) downloads only on devices that will use it
-      import('./engine.js')
+      engine
         .then(({ createUniverse }) => {
           if (cancelled) return
           u = createUniverse(ref.current, { posters: POSTERS, reducedMotion, isCovered })
@@ -136,11 +137,26 @@ export default function Universe() {
         })
         .catch(fail)
     }
-    // Start right away: it sets itself up behind the opening logo (App.jsx)
-    idleId = setTimeout(start, 0)
+    // Setting the scene up takes the browser's full attention for a moment, so
+    // it happens just after the hero's opening has played (the hero shows a
+    // picture of the scene meanwhile) and at a moment without scrolling.
+    let lastScroll = 0
+    const onScroll = () => (lastScroll = performance.now())
+    addEventListener('scroll', onScroll, { passive: true })
+    const calm = () => {
+      if (cancelled) return
+      if (performance.now() - lastScroll < 500) return (idleId = setTimeout(calm, 200))
+      removeEventListener('scroll', onScroll)
+      start()
+    }
+    const afterOpening = () => (idleId = setTimeout(calm, 1150))
+    if (window.__triwebRevealed) afterOpening()
+    else addEventListener('triweb:revealed', afterOpening, { once: true })
     return () => {
       cancelled = true
       clearTimeout(idleId)
+      removeEventListener('scroll', onScroll)
+      removeEventListener('triweb:revealed', afterOpening)
       removeEventListener('triweb:3dstate', onState)
       removeEventListener('triweb:3dready', onReady)
       removeEventListener('triweb:3dsection', onSection)

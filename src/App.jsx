@@ -11,22 +11,9 @@ import { applyMeta } from './lib/routes.js'
 import { initSmoothScroll, scrollToTarget, scrollToTop } from './lib/scroll.js'
 import { gsap, ScrollTrigger, reducedMotion } from './lib/motion.js'
 
-// The 3D engine (and Three.js) starts downloading straight away and sets
-// itself up behind the opening logo, so the page opens with everything ready
-// (see the opening below). Devices without proper 3D support skip it.
+// The 3D engine downloads straight away; it sets itself up once the hero is on
+// screen (see Universe.jsx). Devices without proper 3D support skip it.
 const Universe = lazy(() => import('./universe/Universe.jsx'))
-
-// The opening logo stays up until the 3D scene has drawn its first frame, but
-// never past this point (ms after the page started loading); after that the
-// page opens anyway and the scene fades in when ready.
-const OPEN_BY = 2600
-const sceneReady = () =>
-  new Promise((resolve) => {
-    if (window.__u3dState === 'ready' || window.__u3dState === 'failed') return resolve()
-    addEventListener('triweb:3dready', resolve, { once: true })
-    addEventListener('triweb:3dfail', resolve, { once: true })
-    setTimeout(resolve, Math.max(300, OPEN_BY - performance.now()))
-  })
 
 export default function App() {
   const [route, setRoute] = useState(currentRoute)
@@ -107,6 +94,15 @@ export default function App() {
       finish()
       return
     }
+    if (firstPaint.current) {
+      // First visit: no opening curtain. The page shows directly (the hero
+      // picture is already on screen from the HTML), with a quick hero intro.
+      firstPaint.current = false
+      window.__triwebFirstOpen = true
+      gsap.set(curtain.current, { display: 'none' })
+      finish()
+      return
+    }
     const tl = gsap.timeline({
       onComplete: () => {
         gsap.set(curtain.current, { display: 'none' })
@@ -116,22 +112,6 @@ export default function App() {
         if (q) dispatchQueued(q)
       },
     })
-    if (firstPaint.current) {
-      // Opening: curtain already covers the screen
-      firstPaint.current = false
-      // Kept brisk: the page is ready underneath, so the logo only says hello
-      tl.fromTo('.curtain-logo', { autoAlpha: 0, scale: 0.8 }, { autoAlpha: 1, scale: 1, duration: 0.4, ease: 'expo.out' }).fromTo('.curtain-logo svg', { rotateY: -90 }, { rotateY: 0, duration: 0.55, ease: 'expo.out' }, '<')
-      // Hold on the logo until the 3D scene is ready (gently breathing, a CSS
-      // animation that keeps moving even while the browser is busy setting up)
-      tl.add(() => {
-        tl.pause()
-        document.documentElement.classList.add('curtain-wait')
-        sceneReady().then(() => {
-          document.documentElement.classList.remove('curtain-wait')
-          tl.resume()
-        })
-      })
-    }
     tl.to('.curtain-logo', { autoAlpha: 0, duration: 0.2 }, '+=0.02')
       .add(finish)
       .to('.curtain-panel', { yPercent: -100, duration: 0.6, ease: 'expo.inOut', stagger: 0.05 }, '<')
@@ -162,7 +142,7 @@ export default function App() {
       <Cursor />
 
       {/* Page-transition curtain: three panels, one per brand colour */}
-      <div ref={curtain} className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center" style={{ display: reducedMotion ? 'none' : 'flex' }} aria-hidden="true">
+      <div ref={curtain} className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center" style={{ display: 'none' }} aria-hidden="true">
         <div className="curtain-panel absolute inset-0 bg-vermilion" />
         <div className="curtain-panel absolute inset-0 bg-night" />
         <div className="curtain-panel absolute inset-0 bg-obsidian" />
