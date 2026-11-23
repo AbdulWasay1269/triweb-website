@@ -86,6 +86,8 @@ export default function Universe() {
     if (/[?&]no3d\b/.test(location.search) || (!forced && !hasHardwareWebGL())) {
       document.documentElement.classList.add('no-webgl')
       setFailed(true)
+      window.__u3dState = 'failed'
+      dispatchEvent(new Event('triweb:3dfail'))
       return
     }
     let u
@@ -93,6 +95,7 @@ export default function Universe() {
     let idleId = 0
     const onState = (e) => setAltered(e.detail.altered)
     const onReady = () => {
+      window.__u3dState = 'ready'
       setReady(true)
       // Cross-fade from the hero's still image to the live scene
       const html = document.documentElement
@@ -118,6 +121,8 @@ export default function Universe() {
       console.warn('3D background unavailable', err)
       document.documentElement.classList.add('no-webgl')
       setFailed(true)
+      window.__u3dState = 'failed'
+      dispatchEvent(new Event('triweb:3dfail'))
     }
     const start = () => {
       if (cancelled) return
@@ -131,14 +136,11 @@ export default function Universe() {
         })
         .catch(fail)
     }
-    // Start the 3D world once the page is showing (this component itself is
-    // only loaded then, see App.jsx) and the browser has a free moment.
-    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 300))
-    const schedule = () => (idleId = idle(start, { timeout: 500 }))
-    schedule()
+    // Start right away: it sets itself up behind the opening logo (App.jsx)
+    idleId = setTimeout(start, 0)
     return () => {
       cancelled = true
-      ;(window.cancelIdleCallback || clearTimeout)(idleId)
+      clearTimeout(idleId)
       removeEventListener('triweb:3dstate', onState)
       removeEventListener('triweb:3dready', onReady)
       removeEventListener('triweb:3dsection', onSection)

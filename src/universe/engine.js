@@ -835,7 +835,8 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     else if (path.includes(missing)) prepare(built.group, (root) => renderer.compile(root, camera, scene))
     whenCalm(prebuild)
   }
-  whenCalm(prebuild)
+  // The other scenes are built a few seconds in, after the page has opened
+  setTimeout(() => !disposed && whenCalm(prebuild), 3500)
   const bodyRO = new ResizeObserver(() => (needsLayout = true))
   bodyRO.observe(document.body)
   // Start drawing once the landscape is shaped and, where the browser can
