@@ -189,8 +189,10 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   // a white, blurry-looking haze (it only cleared once a slow phone dropped the
   // glow to save time). Without it the scene is crisp from the first frame, and
   // the phone's GPU has far less to do every frame, which keeps scrolling smooth.
+  // ?noglow: draw without the glow passes (for testing and capturing stills)
+  const noGlow = new URLSearchParams(location.search).has('noglow')
   const setupComposer = () => {
-    if (tier === 'low' || handheld) return
+    if (tier === 'low' || handheld || noGlow) return
     composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: renderer.capabilities.isWebGL2 ? 4 : 0 }))
     composer.addPass(new RenderPass(scene, camera))
     bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.85, 0.55, 0.72)
@@ -612,14 +614,20 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
 
     if (composer) composer.render(dt)
     else renderer.render(scene, camera)
-    // Announce the scene (the hero picture then fades out over it) only once it
-    // is really running: a few frames drawn and actually on screen
-    if (!ready && ++drawnFrames >= 6) {
-      ready = true
-      emit('triweb:3dready', {})
-    }
+    if (!ready && reducedMotion) announce(performance.now())
   }
-  let drawnFrames = 0
+  // The scene is announced (and the hero picture fades out over it) only once
+  // it is really running on screen. The first frames are drawn while still
+  // hidden: on some computers the graphics driver needs seconds to get them on
+  // screen (it finishes preparing shaders then), which showed as a dark hero
+  // between the picture and the live scene. So: wait for a run of smooth frames.
+  let smoothRun = 0
+  let startedAt = 0
+  const announce = (now) => {
+    ready = true
+    warmUntil = now + 2500
+    emit('triweb:3dready', {})
+  }
 
   /* ---------- Loop: refresh-aligned pacing + adaptive resolution ---------- */
   // Frames are paced to the display itself: every refresh while something is
@@ -730,6 +738,11 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     lastRender = now
     const dt = Math.min(elapsed / 1000, 0.1)
     frame(dt)
+    if (!ready) {
+      smoothRun = interval < 70 ? smoothRun + 1 : 0
+      if (smoothRun >= 10 || now - startedAt > 12000) announce(now)
+      return
+    }
     if (tier !== 'low' && div === divisor) tune(now, elapsed, refresh * div)
   }
 
@@ -851,7 +864,7 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   const begin = () => {
     if (started || disposed) return
     started = true
-    warmUntil = performance.now() + 3500
+    startedAt = performance.now()
     if (reducedMotion) {
       frame(0)
       addEventListener('scroll', onScrollStatic, { passive: true })

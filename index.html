@@ -14,11 +14,13 @@
       #boot-hero { display: none; position: absolute; inset: 0 0 auto 0; height: 100vh; height: 100svh; pointer-events: none; }
       html.boot-home #boot-hero { display: block; }
       #boot-hero > div { position: absolute; inset: 0; }
-      #boot-hero .s { background: url(/media/brand/hero-still.webp) center / cover no-repeat; }
+      #boot-hero .s { background: url(/media/brand/hero-still-wide.webp) 50% 50% / auto 100% no-repeat; }
       #boot-hero .g1 { background: linear-gradient(90deg, rgba(11,18,32,0.62) 0%, rgba(11,18,32,0.38) 30%, rgba(11,18,32,0) 54%); }
       #boot-hero .g2 { top: auto; height: 8rem; background: linear-gradient(to bottom, transparent, #0b1220); }
-      @media (max-width: 767px) {
+      @media (max-aspect-ratio: 4/5) {
         #boot-hero .s { background: url(/media/brand/hero-still-portrait.webp) 50% 0 / auto 58.1% no-repeat; }
+      }
+      @media (max-width: 767px) {
         #boot-hero .g1 { background: linear-gradient(0deg, rgba(11,18,32,0.9) 0%, rgba(11,18,32,0.6) 42%, rgba(11,18,32,0) 62%); }
       }
     </style>
@@ -27,7 +29,7 @@
         document.documentElement.classList.add('boot-home')
         var l = document.createElement('link')
         l.rel = 'preload'; l.as = 'image'; l.setAttribute('fetchpriority', 'high')
-        l.href = matchMedia('(max-width: 767px)').matches ? '/media/brand/hero-still-portrait.webp' : '/media/brand/hero-still.webp'
+        l.href = matchMedia('(max-aspect-ratio: 4/5)').matches ? '/media/brand/hero-still-portrait.webp' : '/media/brand/hero-still-wide.webp'
         document.head.appendChild(l)
       }
     </script>
