@@ -11,32 +11,22 @@ import { applyMeta } from './lib/routes.js'
 import { initSmoothScroll, scrollToTarget, scrollToTop } from './lib/scroll.js'
 import { gsap, ScrollTrigger, reducedMotion } from './lib/motion.js'
 
-// The 3D engine (and Three.js) downloads after the page is showing and has
-// loaded (or a few seconds have passed), and only at a moment when the visitor
-// isn't scrolling: setting up the 3D world takes the browser's full attention
-// for a moment, so it must never coincide with the opening or a scroll.
-const afterLoad = () =>
+// The 3D engine (and Three.js) starts downloading straight away and sets
+// itself up behind the opening logo, so the page opens with everything ready
+// (see the opening below). Devices without proper 3D support skip it.
+const Universe = lazy(() => import('./universe/Universe.jsx'))
+
+// The opening logo stays up until the 3D scene has drawn its first frame, but
+// never past this point (ms after the page started loading); after that the
+// page opens anyway and the scene fades in when ready.
+const OPEN_BY = 2600
+const sceneReady = () =>
   new Promise((resolve) => {
-    let lastScroll = 0
-    const onScroll = () => (lastScroll = performance.now())
-    addEventListener('scroll', onScroll, { passive: true })
-    const calm = () => {
-      if (performance.now() - lastScroll < 800) return setTimeout(calm, 300)
-      removeEventListener('scroll', onScroll)
-      resolve()
-    }
-    const loaded = () => {
-      if (document.readyState === 'complete') return calm()
-      const t = setTimeout(calm, 3500)
-      addEventListener('load', () => (clearTimeout(t), calm()), { once: true })
-    }
-    // After the hero's opening text animation has played (the hero shows a
-    // still of the scene meanwhile, see index.css)
-    const revealed = () => setTimeout(loaded, 2800)
-    if (window.__triwebRevealed) revealed()
-    else addEventListener('triweb:revealed', revealed, { once: true })
+    if (window.__u3dState === 'ready' || window.__u3dState === 'failed') return resolve()
+    addEventListener('triweb:3dready', resolve, { once: true })
+    addEventListener('triweb:3dfail', resolve, { once: true })
+    setTimeout(resolve, Math.max(300, OPEN_BY - performance.now()))
   })
-const Universe = lazy(() => afterLoad().then(() => import('./universe/Universe.jsx')))
 
 export default function App() {
   const [route, setRoute] = useState(currentRoute)
@@ -131,6 +121,16 @@ export default function App() {
       firstPaint.current = false
       // Kept brisk: the page is ready underneath, so the logo only says hello
       tl.fromTo('.curtain-logo', { autoAlpha: 0, scale: 0.8 }, { autoAlpha: 1, scale: 1, duration: 0.4, ease: 'expo.out' }).fromTo('.curtain-logo svg', { rotateY: -90 }, { rotateY: 0, duration: 0.55, ease: 'expo.out' }, '<')
+      // Hold on the logo until the 3D scene is ready (gently breathing, a CSS
+      // animation that keeps moving even while the browser is busy setting up)
+      tl.add(() => {
+        tl.pause()
+        document.documentElement.classList.add('curtain-wait')
+        sceneReady().then(() => {
+          document.documentElement.classList.remove('curtain-wait')
+          tl.resume()
+        })
+      })
     }
     tl.to('.curtain-logo', { autoAlpha: 0, duration: 0.2 }, '+=0.02')
       .add(finish)

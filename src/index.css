@@ -851,3 +851,14 @@ html.hero-lit .universe-veil {
     will-change: auto;
   }
 }
+
+/* Opening logo while the 3D scene finishes setting up: a soft breathing glow.
+   A CSS animation, so it keeps moving even while the browser is busy. */
+@keyframes curtain-breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+html.curtain-wait .curtain-logo > span {
+  animation: curtain-breathe 1.4s ease-in-out infinite;
+}
