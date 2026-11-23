@@ -612,11 +612,14 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
 
     if (composer) composer.render(dt)
     else renderer.render(scene, camera)
-    if (!ready) {
+    // Announce the scene (the hero picture then fades out over it) only once it
+    // is really running: a few frames drawn and actually on screen
+    if (!ready && ++drawnFrames >= 6) {
       ready = true
       emit('triweb:3dready', {})
     }
   }
+  let drawnFrames = 0
 
   /* ---------- Loop: refresh-aligned pacing + adaptive resolution ---------- */
   // Frames are paced to the display itself: every refresh while something is

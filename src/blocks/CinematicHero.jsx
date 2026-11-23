@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
 import Button from '../components/Button.jsx'
 import { gsap, reducedMotion, isTouch, whenRevealed } from '../lib/motion.js'
@@ -27,7 +27,15 @@ export default function CinematicHero() {
     }
   }, [])
 
-  useEffect(() => {
+  // The hero's picture shown from the HTML before the app started (index.html)
+  // is replaced by this hero's own identical picture in the same frame
+  useLayoutEffect(() => {
+    document.getElementById('boot-hero')?.remove()
+  }, [])
+
+  // Layout effect: the opening's start states apply before the first paint,
+  // so the text never flashes up and then disappears
+  useLayoutEffect(() => {
     if (reducedMotion) return
     let offReveal = () => {}
     const ctx = gsap.context(() => {
@@ -41,7 +49,9 @@ export default function CinematicHero() {
         .from('.hero-sub', { y: 24, opacity: 0, duration: 1.2 }, 0.95)
         .from('.hero-cta > *', { y: 22, opacity: 0, duration: 1.1, stagger: 0.1 }, 1.1)
         .from('.hero-foot', { opacity: 0, duration: 1.4 }, 1.5)
-      offReveal = whenRevealed(() => intro.play())
+      // On the very first visit the page opens directly (no curtain), so the
+      // opening plays briskly: the hero is complete within about a second
+      offReveal = whenRevealed(() => intro.timeScale(window.__triwebFirstOpen ? 2.2 : 1).play())
 
       // Scrolling away: the copy drifts up and dims while the 3D camera
       // pulls through the sculpture toward the next scene.
