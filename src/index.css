@@ -800,13 +800,28 @@ html.universe-hover body {
   transition: background-position 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 /* Without WebGL the hero shows a still of the 3D sculpture */
-.no-webgl .hero-still {
+/* ...and, on every device, while the 3D scene is still getting ready: the hero
+   looks complete from the first moment, then the live scene fades in over it */
+.no-webgl .hero-still,
+html.u3d-still .hero-still {
   display: block;
   background-image: url('/media/brand/hero-still.webp');
+  transition: opacity 1.4s ease;
+}
+html.u3d-live:not(.no-webgl) .hero-still {
+  opacity: 0;
 }
 @media (max-width: 767px) {
   /* Full-size still: phone screens are 2-3x dense, the 960px version looked blurry */
-  .no-webgl .hero-still { background-position: 70% 0%; background-size: auto 62%; background-repeat: no-repeat; }
+  /* Phones: a still taken from the live scene in its portrait framing, sized to
+     the screen height like the 3D camera, so the cross-fade lines up */
+  .no-webgl .hero-still,
+  html.u3d-still .hero-still {
+    background-image: url('/media/brand/hero-still-portrait.webp');
+    background-position: 50% 0%;
+    background-size: auto 58.1%;
+    background-repeat: no-repeat;
+  }
 }
 
 /* Hero "golden hour": the global readability shade eases off while the hero is on screen */

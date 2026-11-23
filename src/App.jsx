@@ -30,7 +30,9 @@ const afterLoad = () =>
       const t = setTimeout(calm, 3500)
       addEventListener('load', () => (clearTimeout(t), calm()), { once: true })
     }
-    const revealed = () => setTimeout(loaded, 600)
+    // After the hero's opening text animation has played (the hero shows a
+    // still of the scene meanwhile, see index.css)
+    const revealed = () => setTimeout(loaded, 2800)
     if (window.__triwebRevealed) revealed()
     else addEventListener('triweb:revealed', revealed, { once: true })
   })
@@ -46,6 +48,8 @@ export default function App() {
   const firstPaint = useRef(true)
 
   useEffect(() => initSmoothScroll(), [])
+  // The hero shows a still of the 3D scene until the live scene is ready (index.css)
+  useLayoutEffect(() => document.documentElement.classList.add('u3d-still'), [])
 
   // Cover the screen, swap the page, then reveal (see useLayoutEffect below)
   const go = useCallback(
