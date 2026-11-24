@@ -242,3 +242,82 @@ export function PageHorizon() {
     </div>
   )
 }
+
+/* ------------------------------------------------------------------
+   Neon horizon (Software page header): a skyline drawn in light over a
+   glowing grid floor. Mostly transparent, so the 3D city shows through,
+   where the mountain layers were solid navy.
+------------------------------------------------------------------- */
+function skylinePath({ seed, w = 1600, h = 600, min, max, edgeDrop = 0 }) {
+  const r = rng(seed)
+  let x = -20
+  let d = `M-20 ${h}`
+  while (x < w + 20) {
+    const bw = 22 + r() * 58
+    const u = Math.min(1, Math.max(0, x / w))
+    const edge = Math.pow(Math.abs(u - 0.5) * 2, 2)
+    let top = h - (min + Math.pow(r(), 1.6) * (max - min)) + edge * edgeDrop
+    top = Math.min(h - 12, top)
+    d += ` L${x.toFixed(1)} ${top.toFixed(1)} L${(x + bw).toFixed(1)} ${top.toFixed(1)}`
+    // an occasional antenna on the taller towers
+    if (h - top > max * 0.7 && r() > 0.55) {
+      const ax = x + bw / 2
+      d += ` M${ax.toFixed(1)} ${top.toFixed(1)} L${ax.toFixed(1)} ${(top - 18 - r() * 26).toFixed(1)} M${(x + bw).toFixed(1)} ${top.toFixed(1)}`
+    }
+    x += bw + (r() > 0.75 ? 6 + r() * 14 : 0)
+  }
+  return d
+}
+
+function Skyline({ id, d, className, colors, glow }) {
+  return (
+    <svg viewBox="0 0 1600 600" preserveAspectRatio="xMidYMax slice" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor={colors[0]} stopOpacity="0.2" />
+          <stop offset="0.3" stopColor={colors[0]} />
+          <stop offset="0.5" stopColor={colors[1]} />
+          <stop offset="0.7" stopColor={colors[0]} />
+          <stop offset="1" stopColor={colors[0]} stopOpacity="0.2" />
+        </linearGradient>
+        <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={colors[0]} stopOpacity="0.14" />
+          <stop offset="0.5" stopColor={colors[0]} stopOpacity="0.03" />
+          <stop offset="1" stopColor={colors[0]} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${d} L1620 600 Z`} fill={`url(#${id}-fill)`} />
+      {/* soft wide stroke under a thin bright one: a glow without a blur filter */}
+      <path d={d} fill="none" stroke={`url(#${id})`} strokeWidth={glow} strokeOpacity="0.22" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <path d={d} fill="none" stroke={`url(#${id})`} strokeWidth="1.6" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
+}
+
+export function NeonHorizon() {
+  const paths = useMemo(
+    () => ({
+      far: skylinePath({ seed: 7, min: 120, max: 330, edgeDrop: 60 }),
+      near: skylinePath({ seed: 31, min: 60, max: 230, edgeDrop: 20 }),
+    }),
+    [],
+  )
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[62%]" aria-hidden="true">
+      <div className="absolute bottom-[20%] left-1/2 h-[40vmin] w-[90vmin] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(closest-side,rgba(255,90,40,0.45),rgba(255,58,32,0.14)_55%,transparent)] blur-2xl" data-parallax="0.35" />
+      <div className="absolute inset-x-0 bottom-0 h-full" data-parallax="0.22">
+        <Skyline id="nh-far" d={paths.far} className="absolute inset-x-[-4%] bottom-[22%] h-[38%] w-[108%] opacity-45" colors={['#ffb38f', '#ffe2c8']} glow={5} />
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-full" data-parallax="0.1">
+        <Skyline id="nh-near" d={paths.near} className="absolute inset-x-[-5%] bottom-[22%] h-[28%] w-[110%] opacity-90" colors={['#ff3a20', '#ffc46b']} glow={7} />
+      </div>
+      {/* Horizon line */}
+      <div className="absolute bottom-[22%] left-1/2 h-[2px] w-[120vw] -translate-x-1/2 bg-[linear-gradient(90deg,transparent,rgba(255,120,70,0.6)_30%,rgba(255,236,220,0.95)_50%,rgba(255,120,70,0.6)_70%,transparent)]" />
+      {/* Grid floor running towards the viewer */}
+      <div className="neon-floor absolute inset-x-0 bottom-0 h-[22%] overflow-hidden">
+        <div className="neon-floor-plane" />
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-obsidian" />
+    </div>
+  )
+}

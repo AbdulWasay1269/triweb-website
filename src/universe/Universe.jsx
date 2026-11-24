@@ -69,7 +69,7 @@ export default function Universe() {
   useEffect(() => {
     const sync = () => {
       const route = currentRoute()
-      document.documentElement.classList.toggle('page-vivid', route === 'media' || route === 'work')
+      document.documentElement.classList.toggle('page-vivid', route === 'media' || route === 'work' || route === 'software')
     }
     sync()
     window.addEventListener('popstate', sync)

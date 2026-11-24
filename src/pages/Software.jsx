@@ -42,6 +42,7 @@ export default function Software() {
   return (
     <Page>
       <PageHero
+        horizon="neon"
         label="TriWeb Software Company"
         tone="cool"
         title={

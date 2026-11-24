@@ -12,7 +12,8 @@ export function createAI(ctx) {
   const { tier } = ctx
   const g = new THREE.Group()
 
-  // Layered network
+  // Layered network (brighter than before: without the glow effect the network
+  // read as faint lines on a dark background)
   const layerSizes = tier === 'high' ? [6, 10, 14, 10, 6] : [5, 8, 10, 8, 5]
   const layerX = (li) => (li - (layerSizes.length - 1) / 2) * 5.2
   const nodes = []
@@ -25,7 +26,7 @@ export function createAI(ctx) {
   })
   // Nodes are points of light, not shaded balls, so the network reads as a network
   const nodeMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 0.75, 0.55) })
-  const nodeMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.1, 16, 12), nodeMat, nodes.length)
+  const nodeMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 16, 12), nodeMat, nodes.length)
   const nodeColor = new THREE.Color()
   const dummy = new THREE.Object3D()
   nodes.forEach((n, i) => {
@@ -45,9 +46,9 @@ export function createAI(ctx) {
   const haloMat = new THREE.ShaderMaterial({
     uniforms: { uMap: { value: glowTexture() }, uPR: { value: ctx.pixelRatio || 1 }, uA: { value: BRAND.vermilion.clone() }, uB: { value: BRAND.peach.clone() } },
     vertexShader: /* glsl */ `attribute float aAct; uniform float uPR; varying float vAct;
-      void main(){ vAct = aAct; vec4 mv = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * mv; gl_PointSize = (90.0 + aAct * 160.0) * uPR / -mv.z; }`,
+      void main(){ vAct = aAct; vec4 mv = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * mv; gl_PointSize = (130.0 + aAct * 170.0) * uPR / -mv.z; }`,
     fragmentShader: /* glsl */ `uniform sampler2D uMap; uniform vec3 uA; uniform vec3 uB; varying float vAct;
-      void main(){ float a = texture2D(uMap, gl_PointCoord).a; gl_FragColor = vec4(mix(uA, uB, vAct) * 1.5, a * (0.35 + vAct * 0.65)); }`,
+      void main(){ float a = texture2D(uMap, gl_PointCoord).a; gl_FragColor = vec4(mix(uA, uB, vAct) * 2.0, a * (0.6 + vAct * 0.4)); }`,
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
@@ -93,8 +94,8 @@ export function createAI(ctx) {
         float head = fract(uTime * 0.45 + vPh);
         float pulse = smoothstep(0.12, 0.0, abs(vU - head));
         float wave = smoothstep(0.9, 0.0, abs((vL + vU) - uWave));
-        float a = 0.3 + pulse * 0.75 + wave * 0.9 + uBoost * 0.15;
-        gl_FragColor = vec4(mix(uA, uB, pulse + wave) * (1.2 + wave * 2.0), a);
+        float a = 0.55 + pulse * 0.75 + wave * 0.9 + uBoost * 0.15;
+        gl_FragColor = vec4(mix(uA, uB, pulse + wave) * (1.7 + pulse + wave * 2.0), a);
       }`,
     transparent: true,
     depthWrite: false,
@@ -141,11 +142,11 @@ export function createAI(ctx) {
         p *= 1.0 + uAct * 0.08 * wave + uHover * 0.04;
         vec4 mv = modelViewMatrix * vec4(p,1.0);
         gl_Position = projectionMatrix * mv;
-        vGlow = 0.35 + 0.65 * smoothstep(0.6, 1.0, wave * 0.5 + 0.5) * (0.4 + uAct) + uHover * 0.3;
-        gl_PointSize = (2.0 + aSeed * 3.0) * uPR * (22.0 / -mv.z) * (1.0 + uAct * 0.6);
+        vGlow = 0.55 + 0.6 * smoothstep(0.6, 1.0, wave * 0.5 + 0.5) * (0.4 + uAct) + uHover * 0.3;
+        gl_PointSize = (3.0 + aSeed * 4.0) * uPR * (22.0 / -mv.z) * (1.0 + uAct * 0.6);
       }`,
     fragmentShader: /* glsl */ `uniform sampler2D uMap; uniform vec3 uA; uniform vec3 uB; varying float vGlow;
-      void main(){ float a = texture2D(uMap, gl_PointCoord).a; gl_FragColor = vec4(mix(uA, uB, vGlow) * (1.0 + vGlow), a * vGlow); }`,
+      void main(){ float a = texture2D(uMap, gl_PointCoord).a; gl_FragColor = vec4(mix(uA, uB, vGlow) * (1.3 + vGlow), a * vGlow); }`,
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
@@ -159,7 +160,7 @@ export function createAI(ctx) {
   brainGroup.add(brainHit)
   const brainCoreMat = energyMaterial(BRAND.ember, { intensity: 0.6 })
   const brainCore = new THREE.Mesh(new THREE.SphereGeometry(1.1, 32, 24), brainCoreMat)
-  brainGroup.add(brainCore, glowSprite(BRAND.vermilion, 10, 0.25))
+  brainGroup.add(brainCore, glowSprite(BRAND.vermilion, 12, 0.45))
   brainGroup.position.set(0, 6.4, -6)
   g.add(brainGroup)
 

@@ -74,23 +74,102 @@ export function createSoftware(ctx) {
   const towerCount = tier === 'high' ? 90 : tier === 'mid' ? 48 : 30
   const towerGeo = new THREE.BoxGeometry(1, 1, 1)
   towerGeo.translate(0, 0.5, 0)
-  const towerMat = new THREE.MeshStandardMaterial({ color: '#141a2a', metalness: 0.9, roughness: 0.25, emissive: new THREE.Color('#ff3a20'), emissiveIntensity: 0.06 })
+  // Towers: dark glass skyscrapers with lit window grids, glowing edges and a
+  // band of light scanning up each one, so the city reads as alive at night
+  // (the plain dark blocks looked flat and gloomy without the glow effect)
+  const towerMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uSurge: { value: 0 },
+      uBody: { value: new THREE.Color('#121a2e') },
+      uBase: { value: new THREE.Color('#3a1420') },
+      uWin: { value: new THREE.Color('#ffc9a6') },
+      uWinHot: { value: new THREE.Color('#ff6a3d') },
+      uEdge: { value: new THREE.Color('#ff7a45') },
+      uFog: { value: new THREE.Color('#0d1424') },
+    },
+    vertexShader: /* glsl */ `
+      varying vec3 vLocal; varying vec3 vScale; varying vec3 vNrm; varying vec3 vWorld; varying float vSeed;
+      void main(){
+        vScale = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
+        vLocal = position;
+        vNrm = normal;
+        vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
+        vWorld = w.xyz;
+        vSeed = fract(sin(dot(instanceMatrix[3].xz, vec2(12.9898, 78.233))) * 43758.5453);
+        gl_Position = projectionMatrix * viewMatrix * w;
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform float uTime; uniform float uSurge;
+      uniform vec3 uBody; uniform vec3 uBase; uniform vec3 uWin; uniform vec3 uWinHot; uniform vec3 uEdge; uniform vec3 uFog;
+      varying vec3 vLocal; varying vec3 vScale; varying vec3 vNrm; varying vec3 vWorld; varying float vSeed;
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
+      void main(){
+        float h = vLocal.y;                       // 0 at the base, 1 at the roof
+        float H = h * vScale.y;                   // height in world units
+        bool roof = abs(vNrm.y) > 0.5;
+        bool sideX = abs(vNrm.x) > 0.5;
+        float across = sideX ? vLocal.z : vLocal.x; // -0.5..0.5 across the face
+        float width = sideX ? vScale.z : vScale.x;
+        vec3 col = mix(uBase, uBody, smoothstep(0.0, 0.35, h));
+        if (!roof) {
+          // Window grid in world units, so tall and short towers match
+          vec2 uv = vec2((across + 0.5) * width, H);
+          vec2 cell = uv / vec2(0.34, 0.5);
+          vec2 id = floor(cell);
+          vec2 f = fract(cell);
+          float win = step(0.2, f.x) * step(f.x, 0.8) * step(0.28, f.y) * step(f.y, 0.78);
+          float r = hash(id + vSeed * 91.0 + (sideX ? 17.0 : 0.0));
+          float lit = step(0.52 - uSurge * 0.3, r) * (0.75 + 0.25 * sin(uTime * (0.4 + r * 1.6) + r * 40.0));
+          vec3 wc = mix(uWin, uWinHot, step(0.86, r));
+          col += wc * win * lit * (0.55 + 0.45 * h);
+          // Vertical edges catch the light
+          float edgeD = (0.5 - abs(across)) * width;
+          col += uEdge * smoothstep(0.06, 0.0, edgeD) * (0.25 + 0.75 * h);
+          // A band of light scanning up the tower
+          float span = vScale.y + 3.0;
+          float bandY = fract(uTime * (0.07 + vSeed * 0.06) + vSeed) * span - 1.5;
+          col += uWinHot * smoothstep(0.9, 0.0, abs(H - bandY)) * (0.35 + uSurge * 0.6);
+        }
+        // Glowing roof edge
+        float topD = (1.0 - h) * vScale.y;
+        col += uEdge * smoothstep(0.08, 0.0, topD) * 1.4;
+        if (roof) {
+          float rim = smoothstep(0.08, 0.0, (0.5 - max(abs(vLocal.x), abs(vLocal.z))) * min(vScale.x, vScale.z));
+          col = uBody * 1.3 + uEdge * rim * 1.4;
+        }
+        // Distance haze, so the far city recedes into the night
+        float fogF = smoothstep(14.0, 62.0, length(vWorld - cameraPosition));
+        col = mix(col, uFog, fogF * 0.7);
+        gl_FragColor = vec4(col, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  })
   const towers = new THREE.InstancedMesh(towerGeo, towerMat, towerCount)
-  const capMat = new THREE.MeshBasicMaterial({ color: BRAND.ember, transparent: true, opacity: 0.9 })
-  const caps = new THREE.InstancedMesh(new THREE.BoxGeometry(1.02, 0.06, 1.02), capMat, towerCount)
   const tData = []
   const dummy = new THREE.Object3D()
   for (let i = 0; i < towerCount; i++) {
-    let x, z
-    do {
-      x = (Math.random() - 0.5) * 60
-      z = -Math.random() * 46 + 6
-    } while (Math.abs(x) < 7 && z > -16)
+    let x, z, h
+    if (i % 4 === 3) {
+      // A low district straight ahead, under the camera's flight path: a carpet
+      // of lit windows that also fills tall phone screens
+      x = (Math.random() - 0.5) * 18
+      z = -18 - Math.random() * 24
+      h = 1 + Math.random() * 3.5
+    } else {
+      do {
+        x = (Math.random() - 0.5) * 60
+        z = -Math.random() * 46 + 6
+        // Keep the camera's flight path clear, so it glides between the towers
+        // instead of through dark walls
+      } while (Math.abs(x) < (z > -16 ? 7 : 9.5))
+      h = 2 + Math.pow(Math.random(), 2) * 14
+    }
     const w = 0.8 + Math.random() * 1.6
-    const h = 2 + Math.pow(Math.random(), 2) * 14
     tData.push({ x, z, w, h, ph: Math.random() * 6.28 })
   }
-  g.add(towers, caps)
+  g.add(towers)
 
   // Data streams: light trails arcing between towers
   const streams = []
@@ -178,13 +257,8 @@ export function createSoftware(ctx) {
       dummy.scale.set(d.w, h, d.w)
       dummy.updateMatrix()
       towers.setMatrixAt(i, dummy.matrix)
-      dummy.position.y = -4.5 + h
-      dummy.scale.set(d.w, 1, d.w)
-      dummy.updateMatrix()
-      caps.setMatrixAt(i, dummy.matrix)
     })
     towers.instanceMatrix.needsUpdate = true
-    caps.instanceMatrix.needsUpdate = true
   }
   placeTowers(0)
 
@@ -228,8 +302,8 @@ export function createSoftware(ctx) {
       floorMat.uniforms.uScan.value = state.scan
       state.surge = damp(state.surge, state.openTarget * 0.25, 1.4, dt)
       placeTowers(t)
-      towerMat.emissiveIntensity = 0.05 + state.surge * 0.25
-      capMat.opacity = 0.6 + 0.3 * Math.sin(t * 2) + state.surge * 0.3
+      towerMat.uniforms.uTime.value = t
+      towerMat.uniforms.uSurge.value = state.surge
 
       streams.forEach((s) => {
         s.material.uniforms.uTime.value = t

@@ -820,7 +820,7 @@ html.universe-hover body {
 .universe-veil {
   transition: opacity 1.2s ease;
 }
-/* Media and Portfolio carry their mood all the way down the page */
+/* Media, Software and Portfolio carry their mood all the way down the page */
 html.page-vivid .universe-veil {
   opacity: 0.6;
 }
@@ -841,5 +841,42 @@ html.hero-lit .universe-veil {
 @media (hover: none) {
   .card.will-change-transform {
     will-change: auto;
+  }
+}
+
+/* Neon grid floor under the Software page's skyline (src/blocks/LayeredHero.jsx).
+   The grid moves with a transform, so it runs on the GPU without repainting. */
+.neon-floor {
+  perspective: 260px;
+  perspective-origin: 50% 0%;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 35%);
+  mask-image: linear-gradient(to bottom, transparent, #000 35%);
+}
+.neon-floor-plane {
+  position: absolute;
+  left: -50%;
+  right: -50%;
+  top: 0;
+  height: 400%;
+  transform-origin: 50% 0%;
+  background-image:
+    linear-gradient(rgba(255, 90, 44, 0.55) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, rgba(255, 90, 44, 0.45) 1.5px, transparent 1.5px);
+  background-size: 64px 64px;
+  background-position: center top;
+  transform: rotateX(68deg);
+  animation: neon-floor-run 2.4s linear infinite;
+}
+@keyframes neon-floor-run {
+  from {
+    transform: rotateX(68deg) translateY(-64px);
+  }
+  to {
+    transform: rotateX(68deg) translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .neon-floor-plane {
+    animation: none;
   }
 }
