@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { tiltHandlers } from '../lib/motion.js'
-import { PageHorizon } from '../blocks/LayeredHero.jsx'
+import { PageHorizon, NeonHorizon } from '../blocks/LayeredHero.jsx'
 
 import Button from './Button.jsx'
 
@@ -117,7 +117,7 @@ export function CTA() {
 }
 
 /** Hero block used at the top of every inner page. */
-export function PageHero({ label, tone = 'warm', title, children, aside, actions, lit = false }) {
+export function PageHero({ label, tone = 'warm', title, children, aside, actions, lit = false, horizon = 'mountains' }) {
   const ref = useRef(null)
   // `lit` (used by the About page): while this header fills the screen, the
   // site-wide readability shade steps back so the 3D twilight sky shows.
@@ -136,7 +136,9 @@ export function PageHero({ label, tone = 'warm', title, children, aside, actions
       <span data-parallax="0.25" className="tri-watermark pointer-events-none absolute -right-[4vw] top-[8%] -z-10 hidden text-[34vw] md:block" aria-hidden="true">
         tri
       </span>
-      <PageHorizon />
+      {horizon === 'neon' ? <NeonHorizon /> : <PageHorizon />}
+      {/* Neon header: a soft shade behind the text column, over the lit city */}
+      {horizon === 'neon' && <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(90%_45%_at_40%_40%,rgba(11,18,32,0.7),rgba(11,18,32,0.3)_70%,rgba(11,18,32,0)_100%)] md:bg-[linear-gradient(90deg,rgba(11,18,32,0.72)_0%,rgba(11,18,32,0.45)_34%,rgba(11,18,32,0)_58%)]" aria-hidden="true" />}
       {/* Lit headers on phones: a soft shade behind the copy, which sits over the glowing sky */}
       {lit && <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(85%_32%_at_45%_36%,rgba(11,18,32,0.72),rgba(11,18,32,0.35)_70%,rgba(11,18,32,0)_100%)] md:hidden" aria-hidden="true" />}
       {/* ...and on larger screens, the same soft shade behind the text column the home hero uses */}
