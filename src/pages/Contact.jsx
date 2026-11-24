@@ -5,7 +5,7 @@ import { ContactForm, ContactDetails, FAQ } from '../blocks/ContactBlocks.jsx'
 export default function Contact() {
   return (
     <Page>
-      <PageHero label="Contact" tone="uv" title={<>Ready to build & scale your brand?</>}>
+      <PageHero lit label="Contact" tone="uv" title={<>Ready to build & scale your brand?</>}>
         Let's shape the future of your business together. Tell us what you need and the right division will get back to you.
       </PageHero>
 

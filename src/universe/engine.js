@@ -50,7 +50,13 @@ const JOURNEYS = {
   media: [['media', FIRST, { glow: 0.72, exposure: 1.3, sunX: 170, premiere: 1, bokeh: 1 }], ['finale', CTA, { glow: 0.45, exposure: 1.2, premiere: 0.85, bokeh: 0.9 }]],
   software: [['software', FIRST], ['ai', '#case-studies'], ['finale', CTA]],
   work: [['media', FIRST, { glow: 0.6, exposure: 1.26, sunX: -150, aurora: 1, bokeh: 0.55 }], ['finale', CTA, { glow: 0.35, exposure: 1.18, aurora: 0.9, bokeh: 0.5 }]],
-  contact: [['finale', FIRST], ['about', 'section[aria-labelledby="faq-title"]']],
+  // The Contact page is the big finish: northern lights over the glowing
+  // orb, three beams of light meeting in the sky and drifting light bokeh,
+  // carried on down past the form to the FAQ
+  contact: [
+    ['finale', FIRST, { glow: 0.85, exposure: 1.32, sunX: 120, aurora: 1, beams: 1, bokeh: 0.85 }],
+    ['about', 'section[aria-labelledby="faq-title"]', { glow: 0.6, exposure: 1.24, aurora: 0.85, bokeh: 0.7 }],
+  ],
 }
 const routeKey = () => {
   const h = currentRoute()
