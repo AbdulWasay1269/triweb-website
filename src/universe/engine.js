@@ -468,9 +468,7 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   let fov = 50
   let pickTick = 0
   // Opening shot: the camera glides in from high and far, the light fades up
-  // When the hero's still image was shown while loading, the live scene starts
-  // in the same final framing so the cross-fade is seamless (no second opening)
-  let intro = reducedMotion || document.documentElement.classList.contains('u3d-still') ? 1 : 0
+  let intro = reducedMotion ? 1 : 0
   let ready = false
   const ease = (x) => 1 - Math.pow(1 - x, 3)
   let lastSection = -1
@@ -492,7 +490,8 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     const i = Math.min(path.length - 1, Math.floor(chapter))
     const j = Math.min(path.length - 1, i + 1)
     const f = chapter - i
-    intro = Math.min(1, intro + dt / 3.4)
+    // The opening move waits behind the logo and plays as the page opens
+    if (window.__triwebRevealed) intro = Math.min(1, intro + dt / 3.4)
     const ie = ease(intro)
     stationCam(path[i], a, la)
     stationCam(path[j], b, lb)
@@ -616,12 +615,22 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     else renderer.render(scene, camera)
     if (!ready && reducedMotion) announce(performance.now())
   }
-  // The scene is announced (and the hero picture fades out over it) only once
-  // it is really running on screen. The first frames are drawn while still
-  // hidden: on some computers the graphics driver needs seconds to get them on
-  // screen (it finishes preparing shaders then), which showed as a dark hero
-  // between the picture and the live scene. So: wait for a run of smooth frames.
+  // The scene is announced (and the opening logo lifts) only once it is really
+  // on screen: frames arriving smoothly AND the picture actually drawn. On some
+  // laptops the first seconds of frames came out black (the graphics driver
+  // was still preparing the glow passes), which showed as a dark hero.
   let smoothRun = 0
+  let litRun = 0
+  const probe = new Uint8Array(4 * 16 * 16)
+  const drawnLit = () => {
+    const gl = renderer.getContext()
+    const c = renderer.domElement
+    renderer.setRenderTarget(null)
+    gl.readPixels(Math.floor(c.width * 0.62) - 8, Math.floor(c.height * 0.55) - 8, 16, 16, gl.RGBA, gl.UNSIGNED_BYTE, probe)
+    let sum = 0
+    for (let i = 0; i < probe.length; i += 4) sum += probe[i] + probe[i + 1] + probe[i + 2]
+    return sum / (probe.length * 0.75) > 4
+  }
   let startedAt = 0
   const announce = (now) => {
     ready = true
@@ -740,7 +749,8 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     frame(dt)
     if (!ready) {
       smoothRun = interval < 70 ? smoothRun + 1 : 0
-      if (smoothRun >= 10 || now - startedAt > 12000) announce(now)
+      if (smoothRun >= 6) litRun = drawnLit() ? litRun + 1 : 0
+      if ((smoothRun >= 10 && litRun >= 4) || now - startedAt > 15000) announce(now)
       return
     }
     if (tier !== 'low' && div === divisor) tune(now, elapsed, refresh * div)
@@ -851,8 +861,10 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     else if (path.includes(missing)) prepare(built.group, (root) => renderer.compile(root, camera, scene))
     whenCalm(prebuild)
   }
-  // The other scenes are built a few seconds in, after the page has opened
-  setTimeout(() => !disposed && whenCalm(prebuild), 3500)
+  // The other scenes are built a few seconds after the page has opened
+  const laterBuild = () => setTimeout(() => !disposed && whenCalm(prebuild), 4000)
+  if (window.__triwebRevealed) laterBuild()
+  else addEventListener('triweb:revealed', laterBuild, { once: true })
   const bodyRO = new ResizeObserver(() => (needsLayout = true))
   bodyRO.observe(document.body)
   // Start drawing once the landscape is shaped and, where the browser can

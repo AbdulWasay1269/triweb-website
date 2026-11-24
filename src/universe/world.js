@@ -127,7 +127,7 @@ export function createWorld(ctx) {
         vec3 L = normalize(vec3(0.0, 0.32, -1.0));
         float facing = max(dot(vN, L), 0.0);
         float slope = smoothstep(0.04, 0.45, 1.0 - vN.y);
-        float rim = pow(1.0 - max(dot(vN, V), 0.0), 3.0) * (0.35 + facing) * slope;
+        float rim = pow(max(1.0 - max(dot(vN, V), 0.0), 0.0), 3.0) * (0.35 + facing) * slope;
         vec3 col = base * (0.55 + 0.45 * max(vN.y, 0.0)) * (1.0 + uGlow * 0.5) + uSun * rim * (0.55 + uGlow * 0.6) + uEmber * facing * slope * (0.1 + uGlow * 0.25);
         // Glowing contour lines trace the mountains, then the grid takes over
         float contour = lineAA(vH / 2.2, 0.02) * smoothstep(0.08, 0.45, vD) * (1.0 - smoothstep(0.75, 1.0, vD)) * step(0.3, vH);
@@ -197,7 +197,7 @@ export function createWorld(ctx) {
         if (h < -0.04) discard;
         // Vertical rays, drifting sideways
         float rays = texture2D(uNoise, vec2(vUv.x * 7.0 + fold * 1.4 - t * 3.0, 0.15 + t * 0.4)).r;
-        rays = pow(rays, 1.6) * 1.6 + 0.25;
+        rays = pow(max(rays, 0.0), 1.6) * 1.6 + 0.25;
         float base = smoothstep(-0.04, 0.02, h) * exp(-max(h, 0.0) * 3.4);
         float glowLine = exp(-abs(h) * 46.0) * 0.6;
         float sides = smoothstep(0.0, 0.18, vUv.x) * smoothstep(1.0, 0.82, vUv.x);

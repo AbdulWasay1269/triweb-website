@@ -87,8 +87,10 @@ function silkRibbon(curve, color, { width = 0.32, twists = 3, segments = 360, sp
         // Drawn on during the opening: only the part of the loop already revealed shows
         float shown = smoothstep(uReveal, uReveal - 0.04, vU);
         float edge = 1.0 - smoothstep(0.55, 1.0, abs(vSide));
-        // Silk sheen: bright where the band faces the viewer, darker as it turns away
-        float sheen = pow(vFacing, 1.6);
+        // Silk sheen: bright where the band faces the viewer, darker as it turns away.
+        // (Base kept above zero: a tiny negative from interpolation made pow() return
+        // NaN on some GPUs, which the glow pass spread into an all-black frame.)
+        float sheen = pow(max(vFacing, 1e-6), 1.6);
         // Light travelling along the ribbon: soft bands plus two bright heads
         float flow = 0.55 + 0.45 * sin((vU * 26.0 - uTime * (1.2 + uBoost * 3.0)) * 3.14159);
         float h1 = fract(uTime * uSpeed * (1.0 + uBoost * 3.0) + uPhase);

@@ -3,36 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="triweb-version" content="2026-11-23 direct-hero" />
+    <meta name="triweb-version" content="2026-11-24 logo-then-live" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="theme-color" content="#0b1220" />
-    <!-- First paint: dark page and, on the home page, the hero's picture straight
-         from the HTML (before any script runs), so the hero never starts blank.
-         The live 3D scene later fades in over it in the same framing. -->
+    <!-- Opening: the TriWeb logo, straight from the HTML (it shows before any
+         script runs). It stays while the live 3D scene gets ready behind it,
+         then the page opens with everything running (src/App.jsx). -->
     <style>
       html { background: #0b1220; }
-      #boot-hero { display: none; position: absolute; inset: 0 0 auto 0; height: 100vh; height: 100svh; pointer-events: none; }
-      html.boot-home #boot-hero { display: block; }
-      #boot-hero > div { position: absolute; inset: 0; }
-      #boot-hero .s { background: url(/media/brand/hero-still-wide.webp) 50% 50% / auto 100% no-repeat; }
-      #boot-hero .g1 { background: linear-gradient(90deg, rgba(11,18,32,0.62) 0%, rgba(11,18,32,0.38) 30%, rgba(11,18,32,0) 54%); }
-      #boot-hero .g2 { top: auto; height: 8rem; background: linear-gradient(to bottom, transparent, #0b1220); }
-      @media (max-aspect-ratio: 4/5) {
-        #boot-hero .s { background: url(/media/brand/hero-still-portrait.webp) 50% 0 / auto 58.1% no-repeat; }
-      }
-      @media (max-width: 767px) {
-        #boot-hero .g1 { background: linear-gradient(0deg, rgba(11,18,32,0.9) 0%, rgba(11,18,32,0.6) 42%, rgba(11,18,32,0) 62%); }
-      }
+      #splash { position: fixed; inset: 0; z-index: 120; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; background: #0b1220; color: #f4efe9; font-family: 'Outfit Variable', 'Outfit', system-ui, sans-serif; transition: opacity 0.6s ease, visibility 0.6s; }
+      #splash.out { opacity: 0; visibility: hidden; }
+      #splash svg { height: 6rem; width: auto; border-radius: 0.375rem; box-shadow: 0 20px 80px -10px rgba(255, 58, 32, 0.7); animation: splash-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+      #splash .w { font-size: 1.25rem; letter-spacing: -0.035em; animation: splash-in 0.7s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both, splash-breathe 1.6s 0.9s ease-in-out infinite; }
+      #splash .w b { font-weight: 700; }
+      #splash .w span { font-weight: 300; }
+      @keyframes splash-in { from { opacity: 0; transform: scale(0.85); } }
+      @keyframes splash-breathe { 50% { opacity: 0.5; } }
+      @media (prefers-reduced-motion: reduce) { #splash { display: none; } }
     </style>
-    <script>
-      if (location.pathname === '/' || location.pathname === '/index.html') {
-        document.documentElement.classList.add('boot-home')
-        var l = document.createElement('link')
-        l.rel = 'preload'; l.as = 'image'; l.setAttribute('fetchpriority', 'high')
-        l.href = matchMedia('(max-aspect-ratio: 4/5)').matches ? '/media/brand/hero-still-portrait.webp' : '/media/brand/hero-still-wide.webp'
-        document.head.appendChild(l)
-      }
-    </script>
     <!-- Google Search Console ownership check -->
     <meta name="google-site-verification" content="B3fp9uRKGfvXTJ6KWjIxcoecMaDSSaAMTfDgtArrMr4" />
     <!-- Page title, description, canonical and share tags are written in per page by
@@ -71,7 +59,7 @@
         TriWeb Solutions: please enable JavaScript to view this website.
       </p>
     </noscript>
-    <div id="boot-hero" aria-hidden="true"><div class="s"></div><div class="g1"></div><div class="g2"></div></div>
+    <div id="splash" aria-hidden="true"><!--splash-logo--><div class="w"><b>triweb</b><span>solutions</span></div></div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

@@ -5,6 +5,7 @@ import { writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { PAGES, OG_IMAGE } from './src/data/seo.js'
 import { site } from './src/data/site.js'
+import { LOGO_W, LOGO_H, LOGO_PATH } from './src/components/logoPath.js'
 
 /**
  * The live web address, used for canonical links, the sitemap and share previews.
@@ -74,7 +75,11 @@ function seoPages() {
     },
     transformIndexHtml: {
       order: 'pre',
-      handler: (html) => html.replace('<!--seo-->', seoTags(home)).replaceAll('__SITE_URL__', SITE_URL),
+      handler: (html) =>
+        html
+          .replace('<!--seo-->', seoTags(home))
+          .replaceAll('__SITE_URL__', SITE_URL)
+          .replace('<!--splash-logo-->', `<svg viewBox="0 0 ${LOGO_W} ${LOGO_H}"><rect width="${LOGO_W}" height="${LOGO_H}" fill="#ff3a20"/><path d="${LOGO_PATH}" fill="#fff"/></svg>`),
     },
     closeBundle() {
       let base = readFileSync(join(outDir, 'index.html'), 'utf8')
