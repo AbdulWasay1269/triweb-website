@@ -408,3 +408,32 @@ export function WaveHorizon() {
     </div>
   )
 }
+
+/**
+ * The same mountain horizon, used at the foot of every inner page header so
+ * all pages share one cinematic world. Layers drift at different speeds.
+ */
+export function PageHorizon() {
+  const paths = useMemo(
+    () => ({
+      far: ridgePath({ seed: 19, base: 420, amp: 200, sides: 60, freq: 1.2 }),
+      mid: ridgePath({ seed: 29, base: 470, amp: 160, sides: 120, freq: 1 }),
+      near: ridgePath({ seed: 41, base: 540, amp: 110, sides: 200, freq: 1.3 }),
+    }),
+    [],
+  )
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[62%]" aria-hidden="true">
+      <div className="absolute bottom-[18%] left-1/2 h-[46vmin] w-[90vmin] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(closest-side,rgba(255,90,40,0.5),rgba(255,58,32,0.18)_55%,transparent)] blur-2xl" data-parallax="0.35" />
+      <div className="absolute bottom-[34%] left-1/2 h-[2px] w-[120vw] -translate-x-1/2 bg-[linear-gradient(90deg,transparent,rgba(255,170,130,0.5)_40%,rgba(255,235,220,0.8)_50%,rgba(255,170,130,0.5)_60%,transparent)] blur-[1px]" data-parallax="0.35" />
+      <div className="absolute inset-x-0 bottom-0 h-full" data-parallax="0.25">
+        <Ridge id="ph-far" className="absolute inset-x-[-4%] bottom-0 h-[80%] w-[108%] opacity-90" d={paths.far} fill={['#2c2a48', '#171f35']} glow="#ff7a45" />
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-full" data-parallax="0.12">
+        <Ridge id="ph-mid" className="absolute inset-x-[-4%] bottom-0 h-[60%] w-[108%]" d={paths.mid} fill={['#1b2139', '#111a2e']} glow="#ff3a20" />
+      </div>
+      <Ridge id="ph-near" className="absolute inset-x-[-5%] bottom-0 h-[38%] w-[110%]" d={paths.near} fill={['#111a2e', '#0b1220']} glow="#ff3a20" />
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-obsidian" />
+    </div>
+  )
+}

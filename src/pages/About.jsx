@@ -13,7 +13,7 @@ const values = [
 export default function About() {
   return (
     <Page>
-      <PageHero lit label="About TriWeb Solutions" tone="gel" title={<>Three friends. <span className="text-gradient">One shared dream.</span></>} aside={<FounderTriangle />}>
+      <PageHero lit horizon="mountains" label="About TriWeb Solutions" tone="gel" title={<>Three friends. <span className="text-gradient">One shared dream.</span></>} aside={<FounderTriangle />}>
         Founded by three visionaries, Syed Hamza Ali Zaidi, Muhammad Rahim and Anasha Hayyah Khan, TriWeb Solutions began as a shared dream among close friends and university students.
       </PageHero>
 
