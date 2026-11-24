@@ -11,9 +11,24 @@ import { applyMeta } from './lib/routes.js'
 import { initSmoothScroll, scrollToTarget, scrollToTop } from './lib/scroll.js'
 import { gsap, ScrollTrigger, reducedMotion } from './lib/motion.js'
 
-// The 3D engine downloads straight away; it sets itself up once the hero is on
-// screen (see Universe.jsx). Devices without proper 3D support skip it.
+// The 3D engine downloads straight away and sets itself up behind the opening
+// logo. Devices without proper 3D support skip it.
 const Universe = lazy(() => import('./universe/Universe.jsx'))
+
+// Opening: the logo (index.html, #splash) shows for at least OPEN_MIN ms and
+// until the 3D scene is running on screen, then the page opens with the hero
+// and its 3D animation starting together. After OPEN_MAX ms it opens anyway
+// (a slow device) and the scene fades in as soon as it is ready.
+const OPEN_MIN = 2000
+const OPEN_MAX = 7000
+const sceneReady = () =>
+  new Promise((resolve) => {
+    const done = () => setTimeout(resolve, Math.max(0, OPEN_MIN - performance.now()))
+    if (window.__u3dState === 'ready' || window.__u3dState === 'failed') return done()
+    addEventListener('triweb:3dready', done, { once: true })
+    addEventListener('triweb:3dfail', done, { once: true })
+    setTimeout(resolve, Math.max(0, OPEN_MAX - performance.now()))
+  })
 
 export default function App() {
   const [route, setRoute] = useState(currentRoute)
@@ -25,8 +40,6 @@ export default function App() {
   const firstPaint = useRef(true)
 
   useEffect(() => initSmoothScroll(), [])
-  // The hero shows a still of the 3D scene until the live scene is ready (index.css)
-  useLayoutEffect(() => document.documentElement.classList.add('u3d-still'), [])
 
   // Cover the screen, swap the page, then reveal (see useLayoutEffect below)
   const go = useCallback(
@@ -90,18 +103,23 @@ export default function App() {
         setTimeout(() => scrollToTarget(`#${id}`), 150)
       }
     }
+    const splash = document.getElementById('splash')
     if (reducedMotion) {
+      splash?.remove()
       finish()
       return
     }
     if (firstPaint.current) {
-      // First visit: no opening curtain. The page shows directly (the hero
-      // picture is already on screen from the HTML), with a quick hero intro.
+      // First visit: the logo from the HTML stays until the scene is ready
       firstPaint.current = false
-      window.__triwebFirstOpen = true
-      gsap.set(curtain.current, { display: 'none' })
-      finish()
-      return
+      let cancelled = false
+      sceneReady().then(() => {
+        if (cancelled) return
+        splash?.classList.add('out')
+        setTimeout(() => splash?.remove(), 700)
+        finish()
+      })
+      return () => (cancelled = true)
     }
     const tl = gsap.timeline({
       onComplete: () => {

@@ -23,7 +23,7 @@ export function createFinale(ctx) {
         float n = snoise(vP * 0.9 + vec3(0.0, uTime * 0.35, 0.0));
         float n2 = snoise(vP * 2.4 - vec3(uTime * 0.5));
         float cells = smoothstep(-0.2, 0.8, n * 0.65 + n2 * 0.35);
-        float rim = pow(1.0 - max(dot(vN, vV), 0.0), 2.0);
+        float rim = pow(max(1.0 - max(dot(vN, vV), 0.0), 0.0), 2.0);
         vec3 hot = mix(uB, vec3(1.0, 0.97, 0.9), uHot);
         vec3 col = mix(uA * 0.9, hot, cells) * (1.6 + uHot) + uB * rim * 1.5;
         // Soft highlight roll-off keeps the plasma orange instead of clipping to yellow
@@ -56,7 +56,7 @@ export function createFinale(ctx) {
       void main(){
         vec2 p = vUv - 0.5; float r = length(p); float a = atan(p.y, p.x);
         float rays = smoothstep(0.28, 0.78, texture2D(uNoise, vec2(a * 0.477, uTime * 0.01)).r);
-        rays = pow(rays, 3.0) * 1.6 + 0.08;
+        rays = pow(max(rays, 0.0), 3.0) * 1.6 + 0.08;
         float fall = smoothstep(0.5, 0.08, r) * smoothstep(0.04, 0.12, r);
         float a2 = rays * fall * (0.55 + uBoost);
         gl_FragColor = vec4(uColor * (1.2 + uBoost), a2);

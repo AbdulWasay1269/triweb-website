@@ -97,10 +97,6 @@ export default function Universe() {
     const onReady = () => {
       window.__u3dState = 'ready'
       setReady(true)
-      // Cross-fade from the hero's still image to the live scene
-      const html = document.documentElement
-      html.classList.add('u3d-live')
-      setTimeout(() => html.classList.remove('u3d-still', 'u3d-live'), 1600)
     }
     addEventListener('triweb:3dready', onReady)
     // A soft band of warm light crosses the scene at each section change
@@ -137,26 +133,11 @@ export default function Universe() {
         })
         .catch(fail)
     }
-    // Setting the scene up takes the browser's full attention for a moment, so
-    // it happens just after the hero's opening has played (the hero shows a
-    // picture of the scene meanwhile) and at a moment without scrolling.
-    let lastScroll = 0
-    const onScroll = () => (lastScroll = performance.now())
-    addEventListener('scroll', onScroll, { passive: true })
-    const calm = () => {
-      if (cancelled) return
-      if (performance.now() - lastScroll < 500) return (idleId = setTimeout(calm, 200))
-      removeEventListener('scroll', onScroll)
-      start()
-    }
-    const afterOpening = () => (idleId = setTimeout(calm, 1150))
-    if (window.__triwebRevealed) afterOpening()
-    else addEventListener('triweb:revealed', afterOpening, { once: true })
+    // Set up right away, behind the opening logo (App.jsx)
+    idleId = setTimeout(start, 0)
     return () => {
       cancelled = true
       clearTimeout(idleId)
-      removeEventListener('scroll', onScroll)
-      removeEventListener('triweb:revealed', afterOpening)
       removeEventListener('triweb:3dstate', onState)
       removeEventListener('triweb:3dready', onReady)
       removeEventListener('triweb:3dsection', onSection)

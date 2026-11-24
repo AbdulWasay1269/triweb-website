@@ -89,7 +89,7 @@ export function energyMaterial(color = BRAND.vermilion, { intensity = 2.2, flow 
       varying vec3 vN; varying vec3 vV; varying vec3 vP;
       ${noiseGLSL}
       void main(){
-        float fr = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0);
+        float fr = pow(max(1.0 - abs(dot(normalize(vN), normalize(vV))), 0.0), 2.0);
         float n = snoise(vP * 0.6 + vec3(0.0, uTime * 0.6 * uFlow, uTime * 0.3));
         float energy = 0.35 + 0.65 * smoothstep(-0.4, 0.9, n);
         vec3 col = uColor * (fr * 1.4 + energy * 0.55) * (uIntensity + uBoost * 2.5);
@@ -302,7 +302,7 @@ export function lightShaft(color, { radius = 3, height = 30, opacity = 0.35 } = 
     fragmentShader: /* glsl */ `uniform vec3 uColor; uniform float uOpacity; uniform float uH; uniform float uTime; varying float vY; varying vec3 vN; varying vec3 vV;
       void main(){
         float along = 1.0 - clamp(-vY / uH, 0.0, 1.0);
-        float edge = pow(abs(dot(normalize(vN), normalize(vV))), 1.5);
+        float edge = pow(max(abs(dot(normalize(vN), normalize(vV))), 1e-6), 1.5);
         float flicker = 0.9 + 0.1 * sin(uTime * 3.0 + vY);
         gl_FragColor = vec4(uColor * 1.2, along * along * edge * uOpacity * flicker);
       }`,

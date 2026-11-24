@@ -799,33 +799,20 @@ html.universe-hover body {
   color: transparent;
   transition: background-position 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
-/* Without WebGL the hero shows a still of the 3D sculpture */
-/* ...and, on every device, while the 3D scene is still getting ready: the hero
-   looks complete from the first moment, then the live scene fades in over it */
-/* Desktop still: captured from the live scene, sized to the screen height like
-   the 3D camera (whose view depends on height), so the cross-fade lines up */
-.no-webgl .hero-still,
-html.u3d-still .hero-still {
+/* Without 3D: a still captured from the live scene, sized to the screen height
+   like the 3D camera; tall screens get the portrait framing */
+.no-webgl .hero-still {
   display: block;
   background-image: url('/media/brand/hero-still-wide.webp');
   background-size: auto 100%;
   background-position: 50% 50%;
   background-repeat: no-repeat;
-  transition: opacity 1.4s ease;
-}
-html.u3d-live:not(.no-webgl) .hero-still {
-  opacity: 0;
 }
 @media (max-aspect-ratio: 4/5) {
-  /* Tall screens (phones, tablets upright), where the 3D scene uses its portrait
-     framing: a still taken from the live scene in that framing, sized to the
-     screen height like the 3D camera, so the cross-fade lines up */
-  .no-webgl .hero-still,
-  html.u3d-still .hero-still {
+  .no-webgl .hero-still {
     background-image: url('/media/brand/hero-still-portrait.webp');
     background-position: 50% 0%;
     background-size: auto 58.1%;
-    background-repeat: no-repeat;
   }
 }
 
