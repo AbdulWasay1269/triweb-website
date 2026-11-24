@@ -55,6 +55,7 @@ export default function Media() {
 
       <PageHero
         lit
+        horizon="wave"
         label="TriWeb Media Productions"
         title={
           <>

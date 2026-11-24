@@ -17,7 +17,7 @@ function rng(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
 }
-export function ridgePath({ seed, w = 1600, h = 600, base, amp, sides = 0, freq = 1, n = 160 }) {
+export function ridgePath({ seed, w = 1600, h = 600, base, amp, sides = 0, freq = 1, n = 160, open = false }) {
   const r = rng(seed)
   const ph = [r() * 10, r() * 10, r() * 10, r() * 10]
   const ridge = (t) => 1 - Math.abs(Math.sin(t)) // sharp peaks, rounded valleys
@@ -29,6 +29,9 @@ export function ridgePath({ seed, w = 1600, h = 600, base, amp, sides = 0, freq 
     const y = base - amp * v - sides * edge
     pts.push([u * w, Math.max(8, Math.min(h, y))])
   }
+  const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
+  // open: just the ridge line (for drawing it in light)
+  if (open) return line
   return `M0 ${h} ` + pts.map(([x, y]) => `L${x.toFixed(1)} ${y.toFixed(1)}`).join(' ') + ` L${w} ${h} Z`
 }
 
@@ -214,35 +217,6 @@ export default function LayeredHero() {
   )
 }
 
-/**
- * The same mountain horizon, used at the foot of every inner page header so
- * all pages share one cinematic world. Layers drift at different speeds.
- */
-export function PageHorizon() {
-  const paths = useMemo(
-    () => ({
-      far: ridgePath({ seed: 19, base: 420, amp: 200, sides: 60, freq: 1.2 }),
-      mid: ridgePath({ seed: 29, base: 470, amp: 160, sides: 120, freq: 1 }),
-      near: ridgePath({ seed: 41, base: 540, amp: 110, sides: 200, freq: 1.3 }),
-    }),
-    [],
-  )
-  return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[62%]" aria-hidden="true">
-      <div className="absolute bottom-[18%] left-1/2 h-[46vmin] w-[90vmin] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(closest-side,rgba(255,90,40,0.5),rgba(255,58,32,0.18)_55%,transparent)] blur-2xl" data-parallax="0.35" />
-      <div className="absolute bottom-[34%] left-1/2 h-[2px] w-[120vw] -translate-x-1/2 bg-[linear-gradient(90deg,transparent,rgba(255,170,130,0.5)_40%,rgba(255,235,220,0.8)_50%,rgba(255,170,130,0.5)_60%,transparent)] blur-[1px]" data-parallax="0.35" />
-      <div className="absolute inset-x-0 bottom-0 h-full" data-parallax="0.25">
-        <Ridge id="ph-far" className="absolute inset-x-[-4%] bottom-0 h-[80%] w-[108%] opacity-90" d={paths.far} fill={['#2c2a48', '#171f35']} glow="#ff7a45" />
-      </div>
-      <div className="absolute inset-x-0 bottom-0 h-full" data-parallax="0.12">
-        <Ridge id="ph-mid" className="absolute inset-x-[-4%] bottom-0 h-[60%] w-[108%]" d={paths.mid} fill={['#1b2139', '#111a2e']} glow="#ff3a20" />
-      </div>
-      <Ridge id="ph-near" className="absolute inset-x-[-5%] bottom-0 h-[38%] w-[110%]" d={paths.near} fill={['#111a2e', '#0b1220']} glow="#ff3a20" />
-      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-obsidian" />
-    </div>
-  )
-}
-
 /* ------------------------------------------------------------------
    Neon horizon (Software page header): a skyline drawn in light over a
    glowing grid floor. Mostly transparent, so the 3D city shows through,
@@ -318,6 +292,148 @@ export function NeonHorizon() {
         <div className="neon-floor-plane" />
       </div>
       <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-obsidian" />
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------
+   Neon headers for the other inner pages (replacing the solid navy
+   mountains): ridgelines drawn in light, and a sound-wave horizon for
+   Media. Both share the horizon line and the running grid floor.
+------------------------------------------------------------------- */
+function NeonFloor({ at = 22 }) {
+  return (
+    <>
+      <div className="absolute left-1/2 h-[2px] w-[120vw] -translate-x-1/2 bg-[linear-gradient(90deg,transparent,rgba(255,120,70,0.6)_30%,rgba(255,236,220,0.95)_50%,rgba(255,120,70,0.6)_70%,transparent)]" style={{ bottom: `${at}%` }} />
+      <div className="neon-floor absolute inset-x-0 bottom-0 overflow-hidden" style={{ height: `${at}%` }}>
+        <div className="neon-floor-plane" />
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-obsidian" />
+    </>
+  )
+}
+
+function RidgeLine({ id, d, className, colors, glow, fillOpacity = 0.12 }) {
+  return (
+    <svg viewBox="0 0 1600 600" preserveAspectRatio="xMidYMax slice" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor={colors[0]} stopOpacity="0.25" />
+          <stop offset="0.35" stopColor={colors[0]} />
+          <stop offset="0.5" stopColor={colors[1]} />
+          <stop offset="0.65" stopColor={colors[0]} />
+          <stop offset="1" stopColor={colors[0]} stopOpacity="0.25" />
+        </linearGradient>
+        <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={colors[0]} stopOpacity={fillOpacity} />
+          <stop offset="0.6" stopColor={colors[0]} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${d} L1600 600 L0 600 Z`} fill={`url(#${id}-fill)`} />
+      <path d={d} fill="none" stroke={`url(#${id})`} strokeWidth={glow} strokeOpacity="0.2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <path d={d} fill="none" stroke={`url(#${id})`} strokeWidth="1.6" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
+}
+
+/** Mountains drawn in light (About, Portfolio, Contact). */
+export function NeonRidges() {
+  const paths = useMemo(
+    () => ({
+      far: ridgePath({ seed: 19, base: 420, amp: 200, sides: 60, freq: 1.2, open: true }),
+      mid: ridgePath({ seed: 29, base: 470, amp: 160, sides: 120, freq: 1, open: true }),
+      near: ridgePath({ seed: 41, base: 540, amp: 110, sides: 200, freq: 1.3, open: true }),
+    }),
+    [],
+  )
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[62%]" aria-hidden="true">
+      <div className="absolute bottom-[22%] left-1/2 h-[40vmin] w-[90vmin] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(closest-side,rgba(255,90,40,0.45),rgba(255,58,32,0.14)_55%,transparent)] blur-2xl" data-parallax="0.35" />
+      <div className="absolute inset-x-0 bottom-0 h-full" data-parallax="0.25">
+        <RidgeLine id="nr-far" d={paths.far} className="absolute inset-x-[-4%] bottom-[22%] h-[46%] w-[108%] opacity-50" colors={['#ffb38f', '#fff1e4']} glow={5} fillOpacity={0.06} />
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-full" data-parallax="0.12">
+        <RidgeLine id="nr-mid" d={paths.mid} className="absolute inset-x-[-4%] bottom-[22%] h-[36%] w-[108%] opacity-75" colors={['#ff7a45', '#ffd49a']} glow={6} fillOpacity={0.08} />
+      </div>
+      <RidgeLine id="nr-near" d={paths.near} className="absolute inset-x-[-5%] bottom-[22%] h-[26%] w-[110%]" colors={['#ff3a20', '#ffc46b']} glow={8} fillOpacity={0.12} />
+      <NeonFloor at={22} />
+    </div>
+  )
+}
+
+/** Media: a sound-wave skyline of light bars with a light sweep running across it. */
+export function WaveHorizon() {
+  const bars = useMemo(() => {
+    const r = rng(53)
+    const n = 96
+    return Array.from({ length: n }, (_, i) => {
+      const u = i / (n - 1)
+      const env = Math.pow(Math.sin(Math.PI * u), 1.4) // tallest in the middle
+      const v = 0.35 + 0.65 * Math.abs(Math.sin(u * 17 + 1.3) * 0.6 + Math.sin(u * 41) * 0.25 + (r() - 0.5) * 0.5)
+      return { x: u * 1600, h: 18 + 300 * env * v }
+    })
+  }, [])
+  const bw = 1600 / bars.length
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[62%]" aria-hidden="true">
+      <div className="absolute bottom-[22%] left-1/2 h-[40vmin] w-[90vmin] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(closest-side,rgba(255,90,40,0.45),rgba(255,58,32,0.14)_55%,transparent)] blur-2xl" data-parallax="0.35" />
+      <div className="absolute inset-x-0 bottom-0 h-full" data-parallax="0.12">
+        <svg viewBox="0 0 1600 600" preserveAspectRatio="none" className="absolute inset-x-[-4%] bottom-[22%] h-[34%] w-[108%] opacity-85" aria-hidden="true">
+          <defs>
+            <linearGradient id="wh-bar" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0" stopColor="#ff3a20" />
+              <stop offset="0.6" stopColor="#ff7a45" />
+              <stop offset="1" stopColor="#ffd49a" />
+            </linearGradient>
+            <linearGradient id="wh-edge" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stopColor="#fff" stopOpacity="0" />
+              <stop offset="0.2" stopColor="#fff" stopOpacity="1" />
+              <stop offset="0.8" stopColor="#fff" stopOpacity="1" />
+              <stop offset="1" stopColor="#fff" stopOpacity="0" />
+            </linearGradient>
+            <mask id="wh-fade">
+              <rect width="1600" height="600" fill="url(#wh-edge)" />
+            </mask>
+          </defs>
+          <g mask="url(#wh-fade)">
+            {bars.map((b, i) => (
+              <rect key={i} x={b.x + bw * 0.22} y={600 - b.h} width={bw * 0.56} height={b.h} rx={bw * 0.28} fill="url(#wh-bar)" opacity={0.55 + 0.45 * (b.h / 320)} />
+            ))}
+          </g>
+        </svg>
+        {/* a band of light sweeping along the wave */}
+        <div className="wave-sweep absolute bottom-[22%] h-[34%] w-[18%]" />
+      </div>
+      <NeonFloor at={22} />
+    </div>
+  )
+}
+
+/**
+ * The same mountain horizon, used at the foot of every inner page header so
+ * all pages share one cinematic world. Layers drift at different speeds.
+ */
+export function PageHorizon() {
+  const paths = useMemo(
+    () => ({
+      far: ridgePath({ seed: 19, base: 420, amp: 200, sides: 60, freq: 1.2 }),
+      mid: ridgePath({ seed: 29, base: 470, amp: 160, sides: 120, freq: 1 }),
+      near: ridgePath({ seed: 41, base: 540, amp: 110, sides: 200, freq: 1.3 }),
+    }),
+    [],
+  )
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[62%]" aria-hidden="true">
+      <div className="absolute bottom-[18%] left-1/2 h-[46vmin] w-[90vmin] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(closest-side,rgba(255,90,40,0.5),rgba(255,58,32,0.18)_55%,transparent)] blur-2xl" data-parallax="0.35" />
+      <div className="absolute bottom-[34%] left-1/2 h-[2px] w-[120vw] -translate-x-1/2 bg-[linear-gradient(90deg,transparent,rgba(255,170,130,0.5)_40%,rgba(255,235,220,0.8)_50%,rgba(255,170,130,0.5)_60%,transparent)] blur-[1px]" data-parallax="0.35" />
+      <div className="absolute inset-x-0 bottom-0 h-full" data-parallax="0.25">
+        <Ridge id="ph-far" className="absolute inset-x-[-4%] bottom-0 h-[80%] w-[108%] opacity-90" d={paths.far} fill={['#2c2a48', '#171f35']} glow="#ff7a45" />
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-full" data-parallax="0.12">
+        <Ridge id="ph-mid" className="absolute inset-x-[-4%] bottom-0 h-[60%] w-[108%]" d={paths.mid} fill={['#1b2139', '#111a2e']} glow="#ff3a20" />
+      </div>
+      <Ridge id="ph-near" className="absolute inset-x-[-5%] bottom-0 h-[38%] w-[110%]" d={paths.near} fill={['#111a2e', '#0b1220']} glow="#ff3a20" />
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-obsidian" />
     </div>
   )
 }
