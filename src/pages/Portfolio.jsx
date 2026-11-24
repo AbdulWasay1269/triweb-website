@@ -13,7 +13,7 @@ const reels = [
 export default function Portfolio() {
   return (
     <Page>
-      <PageHero lit label="Portfolio" title={<>Selected work</>} aside={<div className="mx-auto w-[min(100%,26rem)] lg:w-full"><TriReel items={reels} /></div>}>
+      <PageHero lit horizon="mountains" label="Portfolio" title={<>Selected work</>} aside={<div className="mx-auto w-[min(100%,26rem)] lg:w-full"><TriReel items={reels} /></div>}>
         Reels, ads and films produced for the brands we work with. Select any piece to watch it in HD with sound.
       </PageHero>
       <section className="pb-24" aria-label="Portfolio">
