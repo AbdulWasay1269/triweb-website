@@ -118,7 +118,11 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   const maxRatio = tier === 'high' || tier === 'mid' ? Math.min(dpr, 2) : 0.45
   // Start one notch below the maximum on very dense screens and let the
   // controller earn the rest, so the first seconds are never the slow ones.
-  let ratio = tier === 'low' ? 0.45 : Math.min(maxRatio, Math.max(handheld ? 1.5 : 1, dpr * 0.75))
+  // Laptops/desktops start within a pixel budget similar to a phone's (big
+  // screens at full density are several times more work for the first frames);
+  // the controller raises sharpness once frames are smooth.
+  const budget = handheld ? Infinity : Math.max(1, Math.sqrt(2.6e6 / Math.max(1, innerWidth * innerHeight)))
+  let ratio = tier === 'low' ? 0.45 : Math.min(maxRatio, budget, Math.max(handheld ? 1.5 : 1, dpr * 0.75))
   // Phones keep 1.5x as long as they can; if the glow has already been switched
   // off and frames are still slow, sharpness may go a little lower (1.2x)
   // instead of halving the frame rate, which read as lag while scrolling.
@@ -182,17 +186,19 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
   let composer = null
   let bloom = null
   let lens = null
-  // Cinematic glow (bloom) and the lens finish run on every device with a real
-  // graphics chip; if one can't keep up, the controller drops them automatically.
   // Phones and tablets draw without the glow passes. On a tall screen the sun
   // sits right behind the sculpture and the glow washed the whole hero out into
   // a white, blurry-looking haze (it only cleared once a slow phone dropped the
   // glow to save time). Without it the scene is crisp from the first frame, and
   // the phone's GPU has far less to do every frame, which keeps scrolling smooth.
-  // ?noglow: draw without the glow passes (for testing and capturing stills)
-  const noGlow = new URLSearchParams(location.search).has('noglow')
+  // Laptops and desktops now draw like phones, without the glow passes: the
+  // phone opening (logo, then the hero with the live scene already moving) is
+  // the one that works best, and on many laptops the full-screen glow passes
+  // at high resolution made the first frames too slow for the scene to be
+  // ready behind the logo. ?glow switches them back on for comparison.
+  const wantGlow = tier !== 'low' && !handheld && new URLSearchParams(location.search).has('glow')
   const setupComposer = () => {
-    if (tier === 'low' || handheld || noGlow) return
+    if (!wantGlow) return
     composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: renderer.capabilities.isWebGL2 ? 4 : 0 }))
     composer.addPass(new RenderPass(scene, camera))
     bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.85, 0.55, 0.72)
@@ -708,7 +714,7 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
       fastFor = 0
       if (divisor > 1) divisor = 1
       else if (ratio < minRatio - 0.01) setRatio(Math.min(minRatio, ratio * 1.08))
-      else if (!composer && tier !== 'low' && !handheld && composerDrops < 2) {
+      else if (!composer && wantGlow && composerDrops < 2) {
         setupComposer()
         composer.setPixelRatio(ratio)
         composer.setSize(container.clientWidth || innerWidth, container.clientHeight || innerHeight)
@@ -751,7 +757,6 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
       smoothRun = interval < 70 ? smoothRun + 1 : 0
       if (smoothRun >= 6) litRun = drawnLit() ? litRun + 1 : 0
       if ((smoothRun >= 10 && litRun >= 4) || now - startedAt > 15000) announce(now)
-      return
     }
     if (tier !== 'low' && div === divisor) tune(now, elapsed, refresh * div)
   }
@@ -877,6 +882,9 @@ export function createUniverse(container, { posters = [], reducedMotion = false,
     if (started || disposed) return
     started = true
     startedAt = performance.now()
+    // A computer that can't keep up at full sharpness steps it down while still
+    // behind the logo, so the scene is smooth by the time the page opens
+    warmUntil = startedAt + 1200
     if (reducedMotion) {
       frame(0)
       addEventListener('scroll', onScrollStatic, { passive: true })
