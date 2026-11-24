@@ -820,7 +820,7 @@ html.universe-hover body {
 .universe-veil {
   transition: opacity 1.2s ease;
 }
-/* Media and Portfolio carry their mood all the way down the page */
+/* Media, Software and Portfolio carry their mood all the way down the page */
 html.page-vivid .universe-veil {
   opacity: 0.6;
 }
